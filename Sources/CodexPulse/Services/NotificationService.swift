@@ -5,13 +5,12 @@ import UserNotifications
 final class NotificationService {
     static let shared = NotificationService()
 
-    private let center = UNUserNotificationCenter.current()
     private let defaults = UserDefaults.standard
 
     private init() {}
 
     func requestPermission() async -> Bool {
-        (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        (try? await Self.requestAuthorization()) ?? false
     }
 
     func evaluate(
@@ -73,6 +72,14 @@ final class NotificationService {
         content.title = title
         content.body = body
         if sound { content.sound = .default }
-        try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+        try? await Self.addNotification(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+    }
+
+    private nonisolated static func requestAuthorization() async throws -> Bool {
+        try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+    }
+
+    private nonisolated static func addNotification(_ request: UNNotificationRequest) async throws {
+        try await UNUserNotificationCenter.current().add(request)
     }
 }
