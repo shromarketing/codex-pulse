@@ -4,6 +4,13 @@ All notable changes to Codex Pulse are documented here.
 
 ## [Unreleased]
 
+## [0.5.1] — Public preview
+
+### Fixed
+
+- Stable GitHub macOS runners now build release packages without relying on a beta-only SwiftPM optimization flag.
+- Notification authorization and delivery compile cleanly under stricter Swift concurrency checking.
+
 ### Added
 
 - GitHub public-preview packaging for universal ZIP, DMG, Chrome connector and SHA-256 checksums, with a manually triggered draft-release workflow.

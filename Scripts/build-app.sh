@@ -9,7 +9,13 @@ configuration_title="${(C)configuration}"
 developer_dir="$(xcode-select -p)"
 build_flags=()
 if [[ "$configuration" == "release" ]]; then
-    build_flags=(-debug-info-format none --enable-experimental-strip-products)
+    build_flags=(-debug-info-format none)
+    # This optimization appeared in newer SwiftPM releases. GitHub's stable
+    # macOS runner can lag behind beta Command Line Tools, so enable it only
+    # when the active toolchain advertises support.
+    if swift build -help 2>&1 | grep -q -- '--enable-experimental-strip-products'; then
+        build_flags+=(--enable-experimental-strip-products)
+    fi
 fi
 
 cd "$project_root"
