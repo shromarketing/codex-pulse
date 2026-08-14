@@ -54,7 +54,7 @@ Codex Pulse показывает в меню-баре и на рабочем с�
 
 ### Вариант B — скачать DMG или ZIP
 
-1. Откройте [релиз Codex Pulse 0.5.1 на GitHub](https://github.com/shromarketing/codex-pulse/releases/tag/v0.5.1).
+1. Откройте [релиз Codex Pulse 0.5.2 на GitHub](https://github.com/shromarketing/codex-pulse/releases/tag/v0.5.2).
 2. Скачайте universal `.dmg` или `.zip` и сравните SHA-256 с файлом `SHA256SUMS`.
 3. Перенесите **Codex Pulse.app** в «Программы».
 4. Один раз попробуйте открыть приложение. Если macOS его заблокирует: **Системные настройки → Конфиденциальность и безопасность → Всё равно открыть**.
@@ -109,7 +109,7 @@ Codex Pulse не собирает историю чатов, тексты про
 
 ## Статус
 
-Версия 0.5.1 — публичная preview-версия. Все 35 автоматических проверок, native package smoke test и проверка контрольных сумм проходят в GitHub Actions; universal-сборка из тега также визуально проверена на macOS перед публикацией.
+Версия 0.5.2 — публичная preview-версия. Автоматические проверки, native package smoke test и проверка контрольных сумм проходят в GitHub Actions; universal-сборка из тега также визуально проверена на macOS перед публикацией.
 
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)

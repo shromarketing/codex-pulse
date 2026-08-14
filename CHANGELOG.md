@@ -4,6 +4,13 @@ All notable changes to Codex Pulse are documented here.
 
 ## [Unreleased]
 
+## [0.5.2] — Single-instance hotfix
+
+### Fixed
+
+- macOS Launch Services now refuses a second Codex Pulse instance, preventing duplicate menu-bar icons and competing local provider bridges.
+- The release test script verifies that the single-instance policy remains enabled.
+
 ## [0.5.1] — Public preview
 
 ### Fixed
