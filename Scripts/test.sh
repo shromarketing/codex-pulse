@@ -15,6 +15,13 @@ fi
 cd "$project_root"
 mkdir -p "$test_cache_root/clang-cache"
 export CLANG_MODULE_CACHE_PATH="$test_cache_root/clang-cache"
+
+single_instance_policy="$(/usr/libexec/PlistBuddy -c 'Print :LSMultipleInstancesProhibited' "$project_root/Resources/Info.plist" 2>/dev/null || true)"
+if [[ "$single_instance_policy" != "true" ]]; then
+    print -u2 "Codex Pulse tests: Info.plist must prohibit duplicate app instances."
+    exit 1
+fi
+
 node "$project_root/Scripts/test-extension.mjs"
 
 if [[ -d "$developer_dir/Platforms/MacOSX.platform" ]]; then
