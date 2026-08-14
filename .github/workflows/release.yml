@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to package as a draft prerelease
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: ./Scripts/test.sh
+      - name: Build unsigned universal preview
+        run: ./Scripts/package-release.sh universal
+      - name: Verify release checksums
+        run: cd dist && shasum -a 256 -c SHA256SUMS
+      - name: Publish GitHub release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ inputs.tag }}" \
+            dist/CodexPulse-*.zip \
+            dist/CodexPulse-*.dmg \
+            dist/SHA256SUMS \
+            --title "Codex Pulse ${{ inputs.tag }}" \
+            --generate-notes \
+            --prerelease \
+            --draft \
+            --verify-tag

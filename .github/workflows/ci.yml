@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Test Swift and browser connector
+        run: ./Scripts/test.sh
+      - name: Native app package smoke test
+        run: ./Scripts/build-app.sh release native
+      - name: Verify app signature
+        run: codesign --verify --deep --strict CodexPulse.app
+      - name: Verify packaged executable
+        run: test -x CodexPulse.app/Contents/MacOS/CodexPulse
+      - name: Build release archive
+        run: ./Scripts/package-release.sh native
+      - name: Verify release checksum
+        run: cd dist && shasum -a 256 -c SHA256SUMS

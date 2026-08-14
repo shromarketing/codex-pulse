@@ -1,0 +1,10 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+Resources/AppIcon.iconset/
+CodexPulse.app/
+dist/
+public-export/
