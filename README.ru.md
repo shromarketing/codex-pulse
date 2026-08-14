@@ -18,6 +18,7 @@
 <p align="center">
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-111827?logo=apple">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
+  <a href="https://github.com/shromarketing/codex-pulse/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/shromarketing/codex-pulse/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Лицензия MIT" src="https://img.shields.io/badge/license-MIT-24AEB3">
   <img alt="Без телеметрии" src="https://img.shields.io/badge/telemetry-none-31C975">
 </p>
@@ -53,7 +54,7 @@ Codex Pulse показывает в меню-баре и на рабочем с�
 
 ### Вариант B — скачать DMG или ZIP
 
-1. Откройте [последний релиз GitHub](https://github.com/shromarketing/codex-pulse/releases/latest).
+1. Откройте [релиз Codex Pulse 0.5.1 на GitHub](https://github.com/shromarketing/codex-pulse/releases/tag/v0.5.1).
 2. Скачайте universal `.dmg` или `.zip` и сравните SHA-256 с файлом `SHA256SUMS`.
 3. Перенесите **Codex Pulse.app** в «Программы».
 4. Один раз попробуйте открыть приложение. Если macOS его заблокирует: **Системные настройки → Конфиденциальность и безопасность → Всё равно открыть**.
@@ -108,7 +109,7 @@ Codex Pulse не собирает историю чатов, тексты про
 
 ## Статус
 
-Версия 0.5.0 — кандидат публичной preview-версии. В Swift и браузерном коннекторе сейчас 34 автоматические проверки; перед публикацией тега всё равно нужен живой визуальный прогон на macOS.
+Версия 0.5.1 — публичная preview-версия. Все 35 автоматических проверок, native package smoke test и проверка контрольных сумм проходят в GitHub Actions; universal-сборка из тега также визуально проверена на macOS перед публикацией.
 
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)

@@ -18,6 +18,7 @@
 <p align="center">
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-111827?logo=apple">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
+  <a href="https://github.com/shromarketing/codex-pulse/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/shromarketing/codex-pulse/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-24AEB3">
   <img alt="No telemetry" src="https://img.shields.io/badge/telemetry-none-31C975">
 </p>
@@ -53,7 +54,7 @@ The full agent checklist is in [INSTALL_WITH_AI.md](INSTALL_WITH_AI.md).
 
 ### Option B — download the DMG or ZIP
 
-1. Open [the latest GitHub release](https://github.com/shromarketing/codex-pulse/releases/latest).
+1. Open [Codex Pulse 0.5.1 on GitHub Releases](https://github.com/shromarketing/codex-pulse/releases/tag/v0.5.1).
 2. Download the universal `.dmg` or `.zip` and compare its SHA-256 with `SHA256SUMS`.
 3. Move **Codex Pulse.app** to Applications.
 4. Try to open it once. If macOS blocks it, open **System Settings → Privacy & Security → Open Anyway** and confirm.
@@ -108,7 +109,7 @@ Release artifacts are written to `dist/`: universal ZIP, drag-to-Applications DM
 
 ## Project status
 
-Version 0.5.0 is a public-preview candidate. The Swift and browser-connector suites currently contain 34 automated checks; release builds still require a live macOS visual pass before a tag is published.
+Version 0.5.1 is a public preview. Its 35 automated checks, native package smoke test and checksum verification pass on GitHub Actions; the tagged universal build was also visually checked on macOS before publication.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
