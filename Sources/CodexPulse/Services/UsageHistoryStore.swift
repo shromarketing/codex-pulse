@@ -19,13 +19,20 @@ actor UsageHistoryStore {
 
     func record(_ snapshots: [ProviderSnapshot]) -> [UsagePoint] {
         var points = load()
-        let calendar = Calendar.current
         for snapshot in snapshots where snapshot.state == .connected {
             guard let used = snapshot.quota?.usedPercent else { continue }
-            points.removeAll {
-                $0.provider == snapshot.provider && calendar.isDate($0.date, inSameDayAs: .now)
+            let previous = points.last { $0.provider == snapshot.provider }
+            let shouldRecord: Bool
+            if let previous {
+                let moved = abs(previous.usedPercent - used) >= 0.25
+                let stale = Date().timeIntervalSince(previous.date) >= 30 * 60
+                shouldRecord = moved || stale
+            } else {
+                shouldRecord = true
             }
-            points.append(UsagePoint(date: .now, provider: snapshot.provider, usedPercent: used))
+            if shouldRecord {
+                points.append(UsagePoint(date: .now, provider: snapshot.provider, usedPercent: used))
+            }
         }
         let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: .now) ?? .distantPast
         points = points.filter { $0.date >= cutoff }.sorted { $0.date < $1.date }

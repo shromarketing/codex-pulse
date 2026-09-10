@@ -6,3 +6,5 @@ DerivedData/
 *.xcworkspace/xcuserdata/
 Resources/AppIcon.iconset/
 CodexPulse.app/
+dist/
+public-export/

@@ -1,25 +1,51 @@
 import Foundation
 
+struct CodexProviderData: Sendable {
+    let snapshot: ProviderSnapshot
+    let accountSummary: AccountUsageSummary?
+    let accountDaily: [AccountDailyUsage]
+    let accountDetails: CodexAccountDetails
+}
+
 struct CodexAppServerProvider: Sendable {
     func fetch() async -> ProviderSnapshot {
+        await fetchData().snapshot
+    }
+
+    func fetchData() async -> CodexProviderData {
         guard let executable = ExecutableLocator.locate("codex") else {
-            return .unavailable(.codex, message: "Codex CLI is not installed")
+            return CodexProviderData(
+                snapshot: .unavailable(.codex, message: "Codex CLI is not installed"),
+                accountSummary: nil,
+                accountDaily: [],
+                accountDetails: .empty
+            )
         }
 
         do {
-            let window = try await CodexAppServerClient(executable: executable).readRateLimit()
+            let data = try await CodexAppServerClient(executable: executable).readAccountData()
 
-            return ProviderSnapshot(
-                provider: .codex,
-                state: .connected,
-                quota: window,
-                source: "Codex App Server",
-                message: nil,
-                updatedAt: .now,
-                history: []
+            return CodexProviderData(
+                snapshot: ProviderSnapshot(
+                    provider: .codex,
+                    state: .connected,
+                    quota: data.window,
+                    source: "Codex App Server",
+                    message: nil,
+                    updatedAt: .now,
+                    history: []
+                ),
+                accountSummary: data.summary,
+                accountDaily: data.daily,
+                accountDetails: data.details
             )
         } catch {
-            return .unavailable(.codex, message: sanitizedError(error.localizedDescription))
+            return CodexProviderData(
+                snapshot: .unavailable(.codex, message: sanitizedError(error.localizedDescription)),
+                accountSummary: nil,
+                accountDaily: [],
+                accountDetails: .empty
+            )
         }
     }
 
@@ -58,13 +84,18 @@ private final class CodexAppServerClient: @unchecked Sendable {
     private var errorBuffer = ""
     private var sentRequests = false
     private var completed = false
-    private var continuation: CheckedContinuation<QuotaWindow, Error>?
+    private var continuation: CheckedContinuation<CodexServerData, Error>?
+    private var quotaWindow: QuotaWindow?
+    private var accountSummary: AccountUsageSummary?
+    private var accountDaily: [AccountDailyUsage] = []
+    private var accountDetails = CodexAccountDetails.empty
+    private var receivedUsage = false
 
     init(executable: String) {
         self.executable = executable
     }
 
-    func readRateLimit(timeout: TimeInterval = 18) async throws -> QuotaWindow {
+    func readAccountData(timeout: TimeInterval = 18) async throws -> CodexServerData {
         try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
             configureProcess()
@@ -78,7 +109,7 @@ private final class CodexAppServerClient: @unchecked Sendable {
                         "clientInfo": [
                             "name": "codex_pulse",
                             "title": "Codex Pulse",
-                            "version": "0.1.0",
+                            "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.5.0",
                         ],
                     ],
                 ])
@@ -88,7 +119,12 @@ private final class CodexAppServerClient: @unchecked Sendable {
             }
 
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) { [weak self] in
-                self?.finish(.failure(CodexAppServerClientError.timeout))
+                guard let self else { return }
+                if let window = self.currentQuotaWindow() {
+                    self.finish(.success(CodexServerData(window: window, summary: self.accountSummary, daily: self.accountDaily, details: self.accountDetails)))
+                } else {
+                    self.finish(.failure(CodexAppServerClientError.timeout))
+                }
             }
         }
     }
@@ -159,17 +195,39 @@ private final class CodexAppServerClient: @unchecked Sendable {
             do {
                 try send(["method": "initialized", "params": [:]])
                 try send(["method": "account/rateLimits/read", "id": 6])
+                try send(["method": "account/usage/read", "id": 7])
             } catch {
                 finish(.failure(CodexAppServerClientError.protocolFailure(error.localizedDescription)))
             }
             return
         }
 
-        guard id == 6,
-              let result = object["result"] as? [String: Any],
-              let window = chooseQuotaWindow(from: result)
-        else { return }
-        finish(.success(window))
+        if id == 6,
+           let result = object["result"] as? [String: Any] {
+            let details = parseAccountDetails(result)
+            guard let window = chooseQuotaWindow(from: details) else { return }
+            lock.lock()
+            quotaWindow = window
+            accountDetails = details
+            let usageReady = receivedUsage
+            let summary = accountSummary
+            let daily = accountDaily
+            lock.unlock()
+            if usageReady { finish(.success(CodexServerData(window: window, summary: summary, daily: daily, details: details))) }
+            return
+        }
+
+        if id == 7 {
+            let usage = parseAccountUsage(object["result"] as? [String: Any])
+            lock.lock()
+            accountSummary = usage.summary
+            accountDaily = usage.daily
+            receivedUsage = true
+            let window = quotaWindow
+            let details = accountDetails
+            lock.unlock()
+            if let window { finish(.success(CodexServerData(window: window, summary: usage.summary, daily: usage.daily, details: details))) }
+        }
     }
 
     private func send(_ object: [String: Any]) throws {
@@ -179,20 +237,92 @@ private final class CodexAppServerClient: @unchecked Sendable {
         try inputPipe.fileHandleForWriting.write(contentsOf: payload)
     }
 
-    private func chooseQuotaWindow(from result: [String: Any]) -> QuotaWindow? {
-        let rateLimits = (result["rateLimitsByLimitId"] as? [String: Any])?["codex"] as? [String: Any]
-            ?? result["rateLimits"] as? [String: Any]
-        guard let rateLimits else { return nil }
-
-        let candidates = ["primary", "secondary", "tertiary"].compactMap { key -> QuotaWindow? in
-            guard let raw = rateLimits[key] as? [String: Any],
-                  let used = number(raw["usedPercent"])
-            else { return nil }
-            let minutes = number(raw["windowDurationMins"]).map(Int.init)
-            let reset = number(raw["resetsAt"]).map { Date(timeIntervalSince1970: $0) }
-            return QuotaWindow(usedPercent: used, resetsAt: reset, windowMinutes: minutes)
+    private func parseAccountDetails(_ result: [String: Any]) -> CodexAccountDetails {
+        var buckets: [CodexQuotaBucket] = []
+        if let byID = result["rateLimitsByLimitId"] as? [String: Any] {
+            for id in byID.keys.sorted() {
+                guard let raw = byID[id] as? [String: Any] else { continue }
+                buckets.append(parseBucket(raw, fallbackID: id))
+            }
         }
-        return candidates.max(by: { ($0.windowMinutes ?? 0) < ($1.windowMinutes ?? 0) })
+        if buckets.isEmpty, let raw = result["rateLimits"] as? [String: Any] {
+            let fallbackID = raw["limitId"] as? String ?? "codex"
+            buckets = [parseBucket(raw, fallbackID: fallbackID)]
+        }
+
+        let preferred = buckets.first(where: { $0.id.lowercased() == "codex" }) ?? buckets.first
+        let resetCredits = (result["rateLimitResetCredits"] as? [String: Any])
+            .flatMap { int64($0["availableCount"]) }
+            .map(Int.init) ?? 0
+        return CodexAccountDetails(
+            quotaBuckets: buckets,
+            planType: preferred?.planType ?? buckets.compactMap(\.planType).first,
+            creditBalance: preferred?.creditBalance ?? buckets.compactMap(\.creditBalance).first,
+            resetCreditsAvailable: resetCredits
+        )
+    }
+
+    private func parseBucket(_ raw: [String: Any], fallbackID: String) -> CodexQuotaBucket {
+        let credits = raw["credits"] as? [String: Any]
+        return CodexQuotaBucket(
+            id: raw["limitId"] as? String ?? fallbackID,
+            name: raw["limitName"] as? String,
+            planType: raw["planType"] as? String,
+            primary: parseWindow(raw["primary"]),
+            secondary: parseWindow(raw["secondary"]),
+            creditBalance: credits?["balance"] as? String,
+            hasCredits: credits?["hasCredits"] as? Bool,
+            unlimitedCredits: credits?["unlimited"] as? Bool ?? false
+        )
+    }
+
+    private func parseWindow(_ value: Any?) -> QuotaWindow? {
+        guard let raw = value as? [String: Any], let used = number(raw["usedPercent"]) else { return nil }
+        return QuotaWindow(
+            usedPercent: used,
+            resetsAt: number(raw["resetsAt"]).map { Date(timeIntervalSince1970: $0) },
+            windowMinutes: number(raw["windowDurationMins"]).map(Int.init)
+        )
+    }
+
+    private func chooseQuotaWindow(from details: CodexAccountDetails) -> QuotaWindow? {
+        let preferred = details.quotaBuckets.first(where: { $0.id.lowercased() == "codex" })
+        let preferredWindows = preferred.map { [$0.primary, $0.secondary].compactMap { $0 } } ?? []
+        let allWindows = details.quotaBuckets.flatMap { [$0.primary, $0.secondary].compactMap { $0 } }
+        return (preferredWindows.isEmpty ? allWindows : preferredWindows)
+            .max(by: { ($0.windowMinutes ?? 0) < ($1.windowMinutes ?? 0) })
+    }
+
+    private func parseAccountUsage(_ result: [String: Any]?) -> (summary: AccountUsageSummary?, daily: [AccountDailyUsage]) {
+        guard let result else { return (nil, []) }
+        let summaryRaw = result["summary"] as? [String: Any]
+        let summary = summaryRaw.map {
+            AccountUsageSummary(
+                lifetimeTokens: int64($0["lifetimeTokens"]),
+                peakDailyTokens: int64($0["peakDailyTokens"]),
+                longestRunningTurnSec: int64($0["longestRunningTurnSec"]),
+                currentStreakDays: int64($0["currentStreakDays"]),
+                longestStreakDays: int64($0["longestStreakDays"])
+            )
+        }
+        let daily = (result["dailyUsageBuckets"] as? [[String: Any]] ?? []).compactMap { item -> AccountDailyUsage? in
+            guard let date = item["startDate"] as? String, let tokens = int64(item["tokens"]) else { return nil }
+            return AccountDailyUsage(startDate: date, tokens: tokens)
+        }
+        return (summary, daily)
+    }
+
+    private func int64(_ value: Any?) -> Int64? {
+        if let value = value as? Int64 { return value }
+        if let value = value as? Int { return Int64(value) }
+        if let value = value as? NSNumber { return value.int64Value }
+        return nil
+    }
+
+    private func currentQuotaWindow() -> QuotaWindow? {
+        lock.lock()
+        defer { lock.unlock() }
+        return quotaWindow
     }
 
     private func number(_ value: Any?) -> Double? {
@@ -208,7 +338,7 @@ private final class CodexAppServerClient: @unchecked Sendable {
         return errorBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func finish(_ result: Result<QuotaWindow, Error>) {
+    private func finish(_ result: Result<CodexServerData, Error>) {
         lock.lock()
         guard !completed else {
             lock.unlock()
@@ -225,4 +355,11 @@ private final class CodexAppServerClient: @unchecked Sendable {
         if process.isRunning { process.terminate() }
         continuation?.resume(with: result)
     }
+}
+
+private struct CodexServerData: Sendable {
+    let window: QuotaWindow
+    let summary: AccountUsageSummary?
+    let daily: [AccountDailyUsage]
+    let details: CodexAccountDetails
 }

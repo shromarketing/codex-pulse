@@ -11,17 +11,19 @@ struct CodexPulseApp: App {
             DashboardView()
                 .environmentObject(state)
                 .environmentObject(settings)
+                .environment(\.locale, settings.language.locale)
                 .preferredColorScheme(settings.theme.colorScheme)
-                .frame(minWidth: 940, minHeight: 650)
+                .frame(minWidth: 1040, minHeight: 700)
                 .task { state.start() }
         }
-        .defaultSize(width: 1080, height: 760)
+        .defaultSize(width: 1180, height: 800)
         .windowStyle(.hiddenTitleBar)
 
         MenuBarExtra {
             MenuBarContentView()
                 .environmentObject(state)
                 .environmentObject(settings)
+                .environment(\.locale, settings.language.locale)
                 .preferredColorScheme(settings.theme.colorScheme)
         } label: {
             MenuBarLabelView()
@@ -34,8 +36,9 @@ struct CodexPulseApp: App {
             SettingsView()
                 .environmentObject(state)
                 .environmentObject(settings)
+                .environment(\.locale, settings.language.locale)
                 .preferredColorScheme(settings.theme.colorScheme)
-                .frame(width: 540, height: 430)
+                .frame(width: 620, height: 720)
         }
     }
 }

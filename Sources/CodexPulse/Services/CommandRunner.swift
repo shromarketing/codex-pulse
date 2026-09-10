@@ -54,7 +54,9 @@ enum CommandRunner {
         executable: String,
         arguments: [String],
         input: String? = nil,
-        timeout: TimeInterval = 25
+        timeout: TimeInterval = 25,
+        currentDirectoryURL: URL? = nil,
+        environmentOverrides: [String: String] = [:]
     ) async throws -> CommandResult {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
@@ -62,9 +64,12 @@ enum CommandRunner {
             let stderrPipe = Pipe()
             let stdinPipe = Pipe()
             let gate = CompletionGate()
+            let stdoutCollector = DataCollector()
+            let stderrCollector = DataCollector()
 
             process.executableURL = URL(fileURLWithPath: executable)
             process.arguments = arguments
+            process.currentDirectoryURL = currentDirectoryURL
             process.standardOutput = stdoutPipe
             process.standardError = stderrPipe
             if input != nil { process.standardInput = stdinPipe }
@@ -77,7 +82,17 @@ enum CommandRunner {
                 "/bin",
                 environment["PATH"] ?? "",
             ].joined(separator: ":")
+            for (key, value) in environmentOverrides {
+                environment[key] = value
+            }
             process.environment = environment
+
+            stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
+                stdoutCollector.append(handle.availableData)
+            }
+            stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+                stderrCollector.append(handle.availableData)
+            }
 
             let timeoutWork = DispatchWorkItem {
                 guard gate.claim() else { return }
@@ -87,11 +102,13 @@ enum CommandRunner {
 
             process.terminationHandler = { finishedProcess in
                 guard gate.claim() else { return }
-                let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                stderrPipe.fileHandleForReading.readabilityHandler = nil
+                stdoutCollector.append(stdoutPipe.fileHandleForReading.readDataToEndOfFile())
+                stderrCollector.append(stderrPipe.fileHandleForReading.readDataToEndOfFile())
                 continuation.resume(returning: CommandResult(
-                    stdout: String(decoding: stdoutData, as: UTF8.self),
-                    stderr: String(decoding: stderrData, as: UTF8.self),
+                    stdout: String(decoding: stdoutCollector.data, as: UTF8.self),
+                    stderr: String(decoding: stderrCollector.data, as: UTF8.self),
                     exitCode: finishedProcess.terminationStatus
                 ))
             }
@@ -112,6 +129,24 @@ enum CommandRunner {
 
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout, execute: timeoutWork)
         }
+    }
+}
+
+private final class DataCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = Data()
+
+    func append(_ data: Data) {
+        guard !data.isEmpty else { return }
+        lock.lock()
+        storage.append(data)
+        lock.unlock()
+    }
+
+    var data: Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
     }
 }
 

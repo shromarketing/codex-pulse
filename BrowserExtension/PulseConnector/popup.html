@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Pulse Connector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header>
+      <span class="mark">⌁</span>
+      <div>
+        <h1>Codex Pulse</h1>
+        <p><span id="subtitle">Claude Web Connector</span> · <span id="versionLabel">Connector version</span> <span id="version"></span></p>
+      </div>
+      <span id="dot" class="dot"></span>
+    </header>
+
+    <section id="pairing">
+      <label for="code" id="codeLabel">Pairing code</label>
+      <div class="code-row">
+        <input id="code" maxlength="8" autocomplete="one-time-code" spellcheck="false" placeholder="ABCD2345">
+        <button id="pairButton" class="primary">Pair</button>
+      </div>
+      <p class="hint" id="pairHint">Create the code in Codex Pulse → Settings → Services.</p>
+    </section>
+
+    <section id="connected" hidden>
+      <div class="status-row">
+        <div>
+          <strong id="connectedTitle">Connected</strong>
+          <p id="lastSync">Waiting for the first update</p>
+        </div>
+        <button id="syncButton" class="primary">Refresh</button>
+      </div>
+      <button id="disconnectButton" class="link">Disconnect this browser profile</button>
+    </section>
+
+    <p id="message" role="status"></p>
+    <footer id="privacy">Only quota percentages and reset times leave Chrome. Cookies and chats stay in the browser.</footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
