@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A native macOS dashboard for separate Codex and Claude quota windows, reset times, and pace forecasts.">
+    <meta name="theme-color" content="#101416">
+    <link rel="canonical" href="https://shromarketing.github.io/codex-pulse/">
+    <meta property="og:title" content="Codex Pulse — quota windows without guesswork">
+    <meta property="og:description" content="Native macOS dashboard for Codex and optional Claude Web limits, reset times, and pace forecasts.">
+    <meta property="og:url" content="https://shromarketing.github.io/codex-pulse/">
+    <meta property="og:image" content="https://raw.githubusercontent.com/shromarketing/codex-pulse/main/docs/assets/overview-dark.jpg">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Codex Pulse — quota windows without guesswork">
+    <meta name="twitter:description" content="Native macOS dashboard for Codex and optional Claude Web limits, reset times, and pace forecasts.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/shromarketing/codex-pulse/main/docs/assets/overview-dark.jpg">
+    <title>Codex Pulse — quota windows without guesswork</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <!--
+      THESIS: Pulse makes the provider boundary visible before it makes a recommendation.
+      OWN-WORLD: A calm, dark macOS control room with precise turquoise/orange provider signals.
+      STORY: A visitor sees what Pulse monitors, what it refuses to collect, and how to try the preview safely.
+      FIRST VIEWPORT: Product mark and source link sit above a wide quota rail; download and source actions stay adjacent.
+      FORM: A provider-led evidence page that resolves into the real dashboard, not a generic SaaS hero.
+    -->
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Codex Pulse home">
+        <img src="https://raw.githubusercontent.com/shromarketing/codex-pulse/main/Resources/AppIcon.png" alt="" width="38" height="38">
+        <span>Codex Pulse</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#privacy">Privacy</a>
+        <a href="https://github.com/shromarketing/codex-pulse" rel="noreferrer">GitHub ↗</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="kicker">Public preview · macOS 13+ · Apple Silicon + Intel</p>
+          <h1 id="hero-title">Quota windows,<br>not quota guesswork.</h1>
+          <p class="lede">One native macOS view for Codex and optional Claude Web limits — with the reset time and pace signal needed before you start the next task.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/shromarketing/codex-pulse/releases/tag/v0.5.2">Download v0.5.2 <span aria-hidden="true">↓</span></a>
+            <a class="button button-secondary" href="https://github.com/shromarketing/codex-pulse">Read the source <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="preview-note"><strong>Before you install:</strong> this is an unsigned public preview. macOS may require its standard one-time “Open Anyway” confirmation.</p>
+        </div>
+
+        <div class="quota-panel" aria-label="Illustrative quota layout">
+          <div class="panel-topline">
+            <span>What Pulse keeps separate</span>
+            <span>Example layout — not live account data</span>
+          </div>
+          <div class="quota-row codex-row">
+            <div class="provider-label"><span class="provider-dot codex-dot" aria-hidden="true"></span><strong>Codex</strong><span>weekly</span></div>
+            <div class="quota-meter" aria-label="Illustrative Codex quota: 62 percent remaining"><span style="width: 62%"></span></div>
+            <strong>62% left</strong>
+            <span class="reset">Resets in 5d 7h</span>
+          </div>
+          <div class="quota-row claude-row">
+            <div class="provider-label"><span class="provider-dot claude-dot" aria-hidden="true"></span><strong>Claude</strong><span>all models</span></div>
+            <div class="quota-meter" aria-label="Illustrative Claude quota: 85 percent remaining"><span style="width: 85%"></span></div>
+            <strong>85% left</strong>
+            <span class="reset">Resets in 4h 20m</span>
+          </div>
+          <div class="pace-line"><span class="pace-mark" aria-hidden="true">✓</span><span><strong>Pace is healthy.</strong> A reset time is not the same as a projected exhaustion time.</span></div>
+        </div>
+      </section>
+
+      <section class="statement" id="how-it-works" aria-labelledby="statement-title">
+        <p class="section-label">The useful distinction</p>
+        <h2 id="statement-title">A percentage only helps when you know which window it belongs to.</h2>
+        <div class="signal-list">
+          <article>
+            <span class="signal-number">01</span>
+            <h3>Window</h3>
+            <p>Codex Weekly, Codex Spark, Claude current session, all models, and model-specific limits stay named and separate.</p>
+          </article>
+          <article>
+            <span class="signal-number">02</span>
+            <h3>Reset</h3>
+            <p>See when this exact provider window becomes available again instead of inferring it from another plan.</p>
+          </article>
+          <article>
+            <span class="signal-number">03</span>
+            <h3>Pace</h3>
+            <p>Understand whether the current rate of use is likely to reach the limit before that reset.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="product-proof" aria-labelledby="product-proof-title">
+        <div class="proof-copy">
+          <p class="section-label">The actual app</p>
+          <h2 id="product-proof-title">Menu bar, widget, and dashboard. One local companion.</h2>
+          <p>Use the compact view while you work, then open the full dashboard for provider windows and local aggregate analytics. The task router can suggest a model and effort level before a task starts.</p>
+        </div>
+        <figure>
+          <img src="https://raw.githubusercontent.com/shromarketing/codex-pulse/main/docs/assets/overview-dark.jpg" alt="Codex Pulse dashboard showing separate Codex and Claude quota sections on macOS">
+          <figcaption>Real Codex Pulse interface. Account values shown are illustrative.</figcaption>
+        </figure>
+      </section>
+
+      <section class="data-boundary" id="privacy" aria-labelledby="boundary-title">
+        <div>
+          <p class="section-label">Data boundaries are a feature</p>
+          <h2 id="boundary-title">Pulse shows what a source returns. It does not make the rest up.</h2>
+        </div>
+        <div class="boundary-table" role="table" aria-label="Provider data boundaries">
+          <div class="table-row table-heading" role="row"><span role="columnheader">Source</span><span role="columnheader">Pulse can show</span><span role="columnheader">Pulse does not claim</span></div>
+          <div class="table-row" role="row"><span role="cell"><i class="provider-dot codex-dot" aria-hidden="true"></i> Codex</span><span role="cell">Quota windows, resets, and local usage aggregates where exposed</span><span role="cell">Chat content or prompt history</span></div>
+          <div class="table-row" role="row"><span role="cell"><i class="provider-dot claude-dot" aria-hidden="true"></i> Claude Web</span><span role="cell">Quota percentages, reset times, and returned model windows such as Fable</span><span role="cell">Exact token ledger, project attribution, or cost when Claude does not provide it</span></div>
+        </div>
+        <p class="boundary-note">Read-only, local-first, and no hidden telemetry. Cookies, passwords, API keys, access tokens, account emails, chats, and prompt bodies are not stored by Pulse.</p>
+      </section>
+
+      <section class="install" aria-labelledby="install-title">
+        <div class="install-head">
+          <p class="section-label">Try the preview carefully</p>
+          <h2 id="install-title">Install from a release — or inspect and build it yourself.</h2>
+        </div>
+        <ol class="install-steps">
+          <li><strong>Read the preview caveat.</strong><span>The current DMG and ZIP are universal, but not notarized with Apple Developer ID.</span></li>
+          <li><strong>Download and verify.</strong><span>Get the release, compare its SHA-256 against <code>SHA256SUMS</code>, then move the app to Applications.</span></li>
+          <li><strong>Keep the safety boundary.</strong><span>Do not disable Gatekeeper or run <code>sudo</code>. If macOS blocks the preview, use its one-app “Open Anyway” flow.</span></li>
+        </ol>
+        <div class="install-actions">
+          <a class="button button-primary" href="https://github.com/shromarketing/codex-pulse/releases/tag/v0.5.2">Open release <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/shromarketing/codex-pulse/blob/main/INSTALL_WITH_AI.md">Installation guide for agents ↗</a>
+        </div>
+      </section>
+
+      <section class="closing" aria-labelledby="closing-title">
+        <p class="section-label">Open source</p>
+        <h2 id="closing-title">Keep the limits visible.<br>Keep the data local.</h2>
+        <p>Codex Pulse is an independent MIT-licensed project. It is not affiliated with or endorsed by OpenAI or Anthropic.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/shromarketing/codex-pulse">Explore on GitHub <span aria-hidden="true">↗</span></a>
+          <a class="button button-secondary" href="https://t.me/shromarketing">Follow project notes on Telegram <span aria-hidden="true">↗</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Codex Pulse · MIT © 2026 Roman Sharafutdinov</span>
+      <span><a href="https://github.com/shromarketing/codex-pulse/blob/main/PRIVACY.md">Privacy</a> · <a href="https://github.com/shromarketing/codex-pulse/blob/main/SECURITY.md">Security</a></span>
+    </footer>
+  </body>
+</html>
