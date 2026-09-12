@@ -5,7 +5,6 @@ project_root="${0:A:h:h}"
 configuration="${1:-release}"
 architecture_mode="${2:-universal}"
 output_app="$project_root/CodexPulse.app"
-configuration_title="${(C)configuration}"
 developer_dir="$(xcode-select -p)"
 build_flags=()
 if [[ "$configuration" == "release" ]]; then
@@ -34,17 +33,22 @@ mkdir -p "$output_app/Contents/MacOS" "$output_app/Contents/Resources"
 if [[ "$architecture_mode" == "universal" ]]; then
     arm_scratch="$project_root/.build/codexpulse-arm64"
     intel_scratch="$project_root/.build/codexpulse-x86_64"
+    # SwiftPM's layout differs between the beta Command Line Tools and GitHub's
+    # stable Xcode runner. Ask SwiftPM for the product directory instead of
+    # assuming its legacy `out/Products/<configuration>` layout.
+    arm_binary="$(swift build --disable-sandbox -c "$configuration" "${build_flags[@]}" --triple arm64-apple-macosx13.0 --scratch-path "$arm_scratch" --show-bin-path)/CodexPulse"
+    intel_binary="$(swift build --disable-sandbox -c "$configuration" "${build_flags[@]}" --triple x86_64-apple-macosx13.0 --scratch-path "$intel_scratch" --show-bin-path)/CodexPulse"
     if ! swift build --disable-sandbox -c "$configuration" "${build_flags[@]}" --triple arm64-apple-macosx13.0 --scratch-path "$arm_scratch"; then
-        [[ -x "$arm_scratch/out/Products/$configuration_title/CodexPulse" ]] || exit 1
+        [[ -x "$arm_binary" ]] || exit 1
     fi
     if ! swift build --disable-sandbox -c "$configuration" "${build_flags[@]}" --triple x86_64-apple-macosx13.0 --scratch-path "$intel_scratch"; then
         # Some Command Line Tools installations finish the Intel binary but fail
         # only while generating its optional dSYM. Package the verified binary.
-        [[ -x "$intel_scratch/out/Products/$configuration_title/CodexPulse" ]] || exit 1
+        [[ -x "$intel_binary" ]] || exit 1
     fi
     lipo -create \
-        "$arm_scratch/out/Products/$configuration_title/CodexPulse" \
-        "$intel_scratch/out/Products/$configuration_title/CodexPulse" \
+        "$arm_binary" \
+        "$intel_binary" \
         -output "$output_app/Contents/MacOS/CodexPulse"
 else
     swift build --disable-sandbox -c "$configuration" "${build_flags[@]}"
