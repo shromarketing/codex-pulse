@@ -2,7 +2,7 @@
 
 All notable changes to Codex Pulse are documented here.
 
-## [Unreleased]
+## [0.5.3] — Analytics and reset signals
 
 ### Added
 
@@ -10,10 +10,13 @@ All notable changes to Codex Pulse are documented here.
 - A dedicated Signals surface in the menu-bar popover and floating widget, with a manual check that does not refresh quotas or local token analytics.
 - Signal cards now use a Russian concise explanation, retain the three newest relevant announcements, and display a defensible estimated moment in Moscow time only when the post supplies enough timing data.
 - Signal cards distinguish an early public announcement from the official App Server confirmation for the current account and include an on-demand macOS notification test.
+- Local token analytics now attribute Codex and Claude Code usage to models, projects and days without retaining chat text or prompts.
+- Claude reset signals now appear alongside Codex signals and use the same local 30-minute monitor, source links and native notifications.
 
 ### Changed
 
 - Codex Spark is now hidden from the everyday quota display; Pulse continues to read the main Codex limit from the official App Server.
+- The menu bar displays both providers with their official icons and the current remaining percentage when data is available.
 
 ## [0.5.2] — Single-instance hotfix
 
