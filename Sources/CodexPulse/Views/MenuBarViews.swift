@@ -134,17 +134,20 @@ private enum MenuBarProviderImage {
         claudeWeekly: String,
         textColor: NSColor
     ) -> NSImage {
-        let font = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
+        let valueAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .semibold),
             .foregroundColor: textColor,
         ]
-        let codexWidth = textWidth(codex, attributes: attributes)
-        let separatorWidth = textWidth(separator, attributes: attributes)
-        let claudeSessionLabelWidth = textWidth(claudeSessionLabel, attributes: attributes)
-        let claudeSessionWidth = textWidth(claudeSession, attributes: attributes)
-        let claudeWeeklyLabelWidth = textWidth(claudeWeeklyLabel, attributes: attributes)
-        let claudeWeeklyWidth = textWidth(claudeWeekly, attributes: attributes)
+        let secondaryAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: textColor.withAlphaComponent(0.62),
+        ]
+        let codexWidth = textWidth(codex, attributes: valueAttributes)
+        let separatorWidth = textWidth(separator, attributes: secondaryAttributes)
+        let claudeSessionLabelWidth = textWidth(claudeSessionLabel, attributes: secondaryAttributes)
+        let claudeSessionWidth = textWidth(claudeSession, attributes: valueAttributes)
+        let claudeWeeklyLabelWidth = textWidth(claudeWeeklyLabel, attributes: secondaryAttributes)
+        let claudeWeeklyWidth = textWidth(claudeWeekly, attributes: valueAttributes)
         let width = inset
             + iconSize + gap + codexWidth
             + gap + separatorWidth + gap
@@ -160,21 +163,21 @@ private enum MenuBarProviderImage {
         var x = inset
         drawAsset(named: "CodexStatusIcon", in: NSRect(x: x, y: inset, width: iconSize, height: iconSize))
         x += iconSize + gap
-        draw(codex, at: x, width: codexWidth, attributes: attributes)
+        draw(codex, at: x, width: codexWidth, attributes: valueAttributes)
         x += codexWidth + gap
-        draw(separator, at: x, width: separatorWidth, attributes: attributes)
+        draw(separator, at: x, width: separatorWidth, attributes: secondaryAttributes, y: 1)
         x += separatorWidth + gap
         drawAsset(named: "ClaudeStatusIcon", in: NSRect(x: x, y: inset, width: iconSize, height: iconSize))
         x += iconSize + gap
-        draw(claudeSessionLabel, at: x, width: claudeSessionLabelWidth, attributes: attributes)
+        draw(claudeSessionLabel, at: x, width: claudeSessionLabelWidth, attributes: secondaryAttributes, y: 1)
         x += claudeSessionLabelWidth + metricLabelGap
-        draw(claudeSession, at: x, width: claudeSessionWidth, attributes: attributes)
+        draw(claudeSession, at: x, width: claudeSessionWidth, attributes: valueAttributes)
         x += claudeSessionWidth + gap
-        draw(separator, at: x, width: separatorWidth, attributes: attributes)
+        draw(separator, at: x, width: separatorWidth, attributes: secondaryAttributes, y: 1)
         x += separatorWidth + gap
-        draw(claudeWeeklyLabel, at: x, width: claudeWeeklyLabelWidth, attributes: attributes)
+        draw(claudeWeeklyLabel, at: x, width: claudeWeeklyLabelWidth, attributes: secondaryAttributes, y: 1)
         x += claudeWeeklyLabelWidth + metricLabelGap
-        draw(claudeWeekly, at: x, width: claudeWeeklyWidth, attributes: attributes)
+        draw(claudeWeekly, at: x, width: claudeWeeklyWidth, attributes: valueAttributes)
         image.unlockFocus()
 
         return image
@@ -184,9 +187,15 @@ private enum MenuBarProviderImage {
         ceil((value as NSString).size(withAttributes: attributes).width)
     }
 
-    private static func draw(_ value: String, at x: CGFloat, width: CGFloat, attributes: [NSAttributedString.Key: Any]) {
+    private static func draw(
+        _ value: String,
+        at x: CGFloat,
+        width: CGFloat,
+        attributes: [NSAttributedString.Key: Any],
+        y: CGFloat = 0
+    ) {
         (value as NSString).draw(
-            in: NSRect(x: x, y: 0, width: width, height: height),
+            in: NSRect(x: x, y: y, width: width, height: height - y),
             withAttributes: attributes
         )
     }

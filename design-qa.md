@@ -69,3 +69,10 @@ final result: passed — 44 Swift tests in 9 suites plus the popup/parser regres
 - Live data check after the installed-app refresh: Codex 46%; Claude session 88%; Claude all-model week 55%; Fable week 100%. Only the session and all-model week appear in the status item; the Fable window remains in the expanded application.
 - Regression/build check: `Scripts/test.sh` passed 46 Swift tests in 9 suites. `Scripts/install-from-source.sh` rebuilt and installed the locally signed native application at `/Users/Freedom/Applications/Codex Pulse.app`.
 - Result: passed. The AppKit status extra is not available through the app-window accessibility tree, but its renderer now has no tintable status symbols: it draws only the known-good provider images and the same white/light text attributes as the percentages.
+
+## 2026-09-19 — Visual hierarchy for Claude window labels
+
+- Fixed: `5ч` and `7д` had the same visual weight as their quota values, so the menu bar read as one long undifferentiated number string. Percentages now use 14 pt semibold monospaced digits at full system contrast; window labels and separators use 12 pt regular text at 62% of that contrast.
+- Live source check after the installed-app refresh: Codex 45%; Claude current session 83%; Claude all-model week 54%; Fable week 100%. The status renderer still selects only the session and all-model weekly windows.
+- Regression/build check: `Scripts/test.sh` passed 46 Swift tests in 9 suites. `Scripts/install-from-source.sh` rebuilt, strict-code-sign verified, installed, and the app was restarted.
+- Result: passed. The system status extra cannot be captured through the app-window accessibility tree, but the installed renderer has distinct primary and secondary attributes, and the live app confirms the three source windows it uses.
