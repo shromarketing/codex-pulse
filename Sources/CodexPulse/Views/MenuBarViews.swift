@@ -48,15 +48,19 @@ struct MenuBarLabelView: View {
     private var providerPercentages: some View {
         let claudeSession = claudeMenuBarQuota(scope: .session)
         let claudeWeekly = claudeMenuBarQuota(scope: .weekly)
+        let sessionLabel = tr(settings.language, "5ч", "5h")
+        let weeklyLabel = tr(settings.language, "7д", "7d")
         return Image(nsImage: MenuBarProviderImage.make(
             codex: compact(state.codex.remainingPercent),
+            claudeSessionLabel: sessionLabel,
             claudeSession: compact(claudeSession?.remainingPercent),
+            claudeWeeklyLabel: weeklyLabel,
             claudeWeekly: compact(claudeWeekly?.remainingPercent),
             textColor: colorScheme == .dark ? .white : .black
         ))
         .renderingMode(.original)
         .accessibilityHidden(true)
-        .id("\(compact(state.codex.remainingPercent))-\(compact(claudeSession?.remainingPercent))-\(compact(claudeWeekly?.remainingPercent))-\(colorScheme == .dark ? "dark" : "light")")
+        .id("\(compact(state.codex.remainingPercent))-\(sessionLabel)-\(compact(claudeSession?.remainingPercent))-\(weeklyLabel)-\(compact(claudeWeekly?.remainingPercent))-\(colorScheme == .dark ? "dark" : "light")")
     }
 
     private func compact(_ value: Double?) -> String {
@@ -117,13 +121,19 @@ struct MenuBarLabelView: View {
 private enum MenuBarProviderImage {
     private static let height: CGFloat = 18
     private static let iconSize: CGFloat = 16
-    private static let metricSymbolSize: CGFloat = 11
     private static let inset: CGFloat = 1
     private static let gap: CGFloat = 4
-    private static let metricGap: CGFloat = 3
+    private static let metricLabelGap: CGFloat = 2
     private static let separator = "·"
 
-    static func make(codex: String, claudeSession: String, claudeWeekly: String, textColor: NSColor) -> NSImage {
+    static func make(
+        codex: String,
+        claudeSessionLabel: String,
+        claudeSession: String,
+        claudeWeeklyLabel: String,
+        claudeWeekly: String,
+        textColor: NSColor
+    ) -> NSImage {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
@@ -131,15 +141,17 @@ private enum MenuBarProviderImage {
         ]
         let codexWidth = textWidth(codex, attributes: attributes)
         let separatorWidth = textWidth(separator, attributes: attributes)
+        let claudeSessionLabelWidth = textWidth(claudeSessionLabel, attributes: attributes)
         let claudeSessionWidth = textWidth(claudeSession, attributes: attributes)
+        let claudeWeeklyLabelWidth = textWidth(claudeWeeklyLabel, attributes: attributes)
         let claudeWeeklyWidth = textWidth(claudeWeekly, attributes: attributes)
         let width = inset
             + iconSize + gap + codexWidth
             + gap + separatorWidth + gap
             + iconSize + gap
-            + metricSymbolSize + metricGap + claudeSessionWidth
-            + gap
-            + metricSymbolSize + metricGap + claudeWeeklyWidth
+            + claudeSessionLabelWidth + metricLabelGap + claudeSessionWidth
+            + gap + separatorWidth + gap
+            + claudeWeeklyLabelWidth + metricLabelGap + claudeWeeklyWidth
             + inset
         let image = NSImage(size: NSSize(width: ceil(width), height: height))
         image.isTemplate = false
@@ -154,12 +166,14 @@ private enum MenuBarProviderImage {
         x += separatorWidth + gap
         drawAsset(named: "ClaudeStatusIcon", in: NSRect(x: x, y: inset, width: iconSize, height: iconSize))
         x += iconSize + gap
-        drawSymbol(named: "timer", in: NSRect(x: x, y: (height - metricSymbolSize) / 2, width: metricSymbolSize, height: metricSymbolSize), color: textColor)
-        x += metricSymbolSize + metricGap
+        draw(claudeSessionLabel, at: x, width: claudeSessionLabelWidth, attributes: attributes)
+        x += claudeSessionLabelWidth + metricLabelGap
         draw(claudeSession, at: x, width: claudeSessionWidth, attributes: attributes)
         x += claudeSessionWidth + gap
-        drawSymbol(named: "calendar", in: NSRect(x: x, y: (height - metricSymbolSize) / 2, width: metricSymbolSize, height: metricSymbolSize), color: textColor)
-        x += metricSymbolSize + metricGap
+        draw(separator, at: x, width: separatorWidth, attributes: attributes)
+        x += separatorWidth + gap
+        draw(claudeWeeklyLabel, at: x, width: claudeWeeklyLabelWidth, attributes: attributes)
+        x += claudeWeeklyLabelWidth + metricLabelGap
         draw(claudeWeekly, at: x, width: claudeWeeklyWidth, attributes: attributes)
         image.unlockFocus()
 
@@ -184,14 +198,6 @@ private enum MenuBarProviderImage {
         asset.draw(in: rect)
     }
 
-    private static func drawSymbol(named name: String, in rect: NSRect, color: NSColor) {
-        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: metricSymbolSize, weight: .medium))
-        else { return }
-        symbol.isTemplate = true
-        color.set()
-        symbol.draw(in: rect)
-    }
 }
 
 struct MenuBarContentView: View {

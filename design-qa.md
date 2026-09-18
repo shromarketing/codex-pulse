@@ -62,3 +62,10 @@ final result: passed — 44 Swift tests in 9 suites plus the popup/parser regres
 - Live source check: the newly installed 0.5.3 app received Codex 46%, Claude current session 92%, all-model week 55%, and Fable week 100%. The dashboard visibly retains all three Claude meters; the status renderer selects only the first two account-wide scopes.
 - Regression check: `Scripts/test.sh` passed 46 Swift tests in 9 suites, including explicit selection and unavailable-window cases. `Scripts/install-from-source.sh` rebuilt, strict-code-sign verified, backed up the old app, and installed the native release at `/Users/Freedom/Applications/Codex Pulse.app`.
 - Result: passed. The installed app was opened against live Pulse Connector data. The status item itself is rendered by AppKit as a system status extra, so it is not exposed in the app-window accessibility tree; source-level image composition and the live scope values were both verified.
+
+## 2026-09-19 — Contrast correction for Claude menu-bar windows
+
+- Fixed: the small `timer` and `calendar` template symbols could stay black on a dark macOS menu bar. The official provider assets remain, while the Claude window indicators are now regular high-contrast text: `5ч 88% · 7д 55%` in Russian and `5h 88% · 7d 55%` in English.
+- Live data check after the installed-app refresh: Codex 46%; Claude session 88%; Claude all-model week 55%; Fable week 100%. Only the session and all-model week appear in the status item; the Fable window remains in the expanded application.
+- Regression/build check: `Scripts/test.sh` passed 46 Swift tests in 9 suites. `Scripts/install-from-source.sh` rebuilt and installed the locally signed native application at `/Users/Freedom/Applications/Codex Pulse.app`.
+- Result: passed. The AppKit status extra is not available through the app-window accessibility tree, but its renderer now has no tintable status symbols: it draws only the known-good provider images and the same white/light text attributes as the percentages.
