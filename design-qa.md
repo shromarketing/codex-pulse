@@ -55,3 +55,10 @@
 - Claude parser coverage uses a sanitized fixture matching the live Usage page shape. The user approved the legacy cookie attempt; CodexBar could not see the active Claude Chrome profile. The bundled connector now keeps cookies in Chrome and has parser/pairing coverage, but still needs a live same-profile smoke test.
 
 final result: passed — 44 Swift tests in 9 suites plus the popup/parser regression pass; the native release build and locally installed app pass strict code-sign verification. The rebuilt single-text menu-bar label and relaunched app returned live Codex and Claude quota snapshots. Public distribution still separately requires onboarding, Developer ID signing, notarization, and an update channel.
+
+## 2026-09-19 — Claude session + week in menu bar
+
+- Implemented: the Percentage status item keeps the official Codex and Claude assets, then shows a native timer with the current Claude session first and a calendar with the all-model weekly window second. Fable/model-specific windows stay in the expanded application surface and never crowd the menu bar.
+- Live source check: the newly installed 0.5.3 app received Codex 46%, Claude current session 92%, all-model week 55%, and Fable week 100%. The dashboard visibly retains all three Claude meters; the status renderer selects only the first two account-wide scopes.
+- Regression check: `Scripts/test.sh` passed 46 Swift tests in 9 suites, including explicit selection and unavailable-window cases. `Scripts/install-from-source.sh` rebuilt, strict-code-sign verified, backed up the old app, and installed the native release at `/Users/Freedom/Applications/Codex Pulse.app`.
+- Result: passed. The installed app was opened against live Pulse Connector data. The status item itself is rendered by AppKit as a system status extra, so it is not exposed in the app-window accessibility tree; source-level image composition and the live scope values were both verified.

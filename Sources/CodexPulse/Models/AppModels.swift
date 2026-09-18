@@ -85,11 +85,30 @@ struct ClaudeAccountDetails: Hashable, Sendable {
     let planName: String?
     let creditBalance: String?
 
+    /// The menu bar intentionally surfaces only the two account-wide windows.
+    /// Model-specific windows such as Fable remain available in the expanded UI.
+    var menuBarSessionQuota: QuotaWindow? {
+        menuBarQuota(scope: .session)
+    }
+
+    var menuBarWeeklyQuota: QuotaWindow? {
+        menuBarQuota(scope: .weekly)
+    }
+
     static let empty = ClaudeAccountDetails(
         quotaMeters: [],
         planName: nil,
         creditBalance: nil
     )
+
+    private func menuBarQuota(scope: ClaudeQuotaScope) -> QuotaWindow? {
+        quotaMeters
+            .filter { $0.scope == scope && $0.usageKnown }
+            .min { lhs, rhs in
+                lhs.window.remainingPercent < rhs.window.remainingPercent
+            }?
+            .window
+    }
 }
 
 struct ClaudeProviderData: Sendable {

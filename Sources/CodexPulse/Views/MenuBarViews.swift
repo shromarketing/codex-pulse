@@ -46,14 +46,17 @@ struct MenuBarLabelView: View {
     }
 
     private var providerPercentages: some View {
-        Image(nsImage: MenuBarProviderImage.make(
+        let claudeSession = claudeMenuBarQuota(scope: .session)
+        let claudeWeekly = claudeMenuBarQuota(scope: .weekly)
+        return Image(nsImage: MenuBarProviderImage.make(
             codex: compact(state.codex.remainingPercent),
-            claude: compact(state.claude.remainingPercent),
+            claudeSession: compact(claudeSession?.remainingPercent),
+            claudeWeekly: compact(claudeWeekly?.remainingPercent),
             textColor: colorScheme == .dark ? .white : .black
         ))
         .renderingMode(.original)
         .accessibilityHidden(true)
-        .id("\(compact(state.codex.remainingPercent))-\(compact(state.claude.remainingPercent))-\(colorScheme == .dark ? "dark" : "light")")
+        .id("\(compact(state.codex.remainingPercent))-\(compact(claudeSession?.remainingPercent))-\(compact(claudeWeekly?.remainingPercent))-\(colorScheme == .dark ? "dark" : "light")")
     }
 
     private func compact(_ value: Double?) -> String {
@@ -80,28 +83,47 @@ struct MenuBarLabelView: View {
     }
 
     private var menuBarSummary: String {
-        let providerStatus = state.connectedSnapshots.map { snapshot in
-            tr(
+        var providerStatus: [String] = []
+        if state.codex.state == .connected {
+            providerStatus.append(tr(
                 settings.language,
-                "\(snapshot.provider.displayName): осталось \(percentText(snapshot.remainingPercent))",
-                "\(snapshot.provider.displayName): \(percentText(snapshot.remainingPercent)) left"
-            )
+                "Codex: осталось \(percentText(state.codex.remainingPercent))",
+                "Codex: \(percentText(state.codex.remainingPercent)) left"
+            ))
+        }
+        if state.claude.state == .connected {
+            providerStatus.append(tr(
+                settings.language,
+                "Claude: текущая сессия — \(percentText(claudeMenuBarQuota(scope: .session)?.remainingPercent)); неделя — \(percentText(claudeMenuBarQuota(scope: .weekly)?.remainingPercent))",
+                "Claude: current session — \(percentText(claudeMenuBarQuota(scope: .session)?.remainingPercent)); week — \(percentText(claudeMenuBarQuota(scope: .weekly)?.remainingPercent))"
+            ))
         }
         guard !providerStatus.isEmpty else {
             return tr(settings.language, "Codex Pulse: данные обновляются", "Codex Pulse: updating data")
         }
         return providerStatus.joined(separator: ". ")
     }
+
+    private func claudeMenuBarQuota(scope: ClaudeQuotaScope) -> QuotaWindow? {
+        guard state.claude.state == .connected else { return nil }
+        return switch scope {
+        case .session: state.claudeAccountDetails.menuBarSessionQuota
+        case .weekly: state.claudeAccountDetails.menuBarWeeklyQuota
+        case .modelWeekly: nil
+        }
+    }
 }
 
 private enum MenuBarProviderImage {
     private static let height: CGFloat = 18
     private static let iconSize: CGFloat = 16
+    private static let metricSymbolSize: CGFloat = 11
     private static let inset: CGFloat = 1
     private static let gap: CGFloat = 4
+    private static let metricGap: CGFloat = 3
     private static let separator = "·"
 
-    static func make(codex: String, claude: String, textColor: NSColor) -> NSImage {
+    static func make(codex: String, claudeSession: String, claudeWeekly: String, textColor: NSColor) -> NSImage {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
@@ -109,8 +131,16 @@ private enum MenuBarProviderImage {
         ]
         let codexWidth = textWidth(codex, attributes: attributes)
         let separatorWidth = textWidth(separator, attributes: attributes)
-        let claudeWidth = textWidth(claude, attributes: attributes)
-        let width = inset + iconSize + gap + codexWidth + gap + separatorWidth + gap + iconSize + gap + claudeWidth + inset
+        let claudeSessionWidth = textWidth(claudeSession, attributes: attributes)
+        let claudeWeeklyWidth = textWidth(claudeWeekly, attributes: attributes)
+        let width = inset
+            + iconSize + gap + codexWidth
+            + gap + separatorWidth + gap
+            + iconSize + gap
+            + metricSymbolSize + metricGap + claudeSessionWidth
+            + gap
+            + metricSymbolSize + metricGap + claudeWeeklyWidth
+            + inset
         let image = NSImage(size: NSSize(width: ceil(width), height: height))
         image.isTemplate = false
 
@@ -124,7 +154,13 @@ private enum MenuBarProviderImage {
         x += separatorWidth + gap
         drawAsset(named: "ClaudeStatusIcon", in: NSRect(x: x, y: inset, width: iconSize, height: iconSize))
         x += iconSize + gap
-        draw(claude, at: x, width: claudeWidth, attributes: attributes)
+        drawSymbol(named: "timer", in: NSRect(x: x, y: (height - metricSymbolSize) / 2, width: metricSymbolSize, height: metricSymbolSize), color: textColor)
+        x += metricSymbolSize + metricGap
+        draw(claudeSession, at: x, width: claudeSessionWidth, attributes: attributes)
+        x += claudeSessionWidth + gap
+        drawSymbol(named: "calendar", in: NSRect(x: x, y: (height - metricSymbolSize) / 2, width: metricSymbolSize, height: metricSymbolSize), color: textColor)
+        x += metricSymbolSize + metricGap
+        draw(claudeWeekly, at: x, width: claudeWeeklyWidth, attributes: attributes)
         image.unlockFocus()
 
         return image
@@ -146,6 +182,15 @@ private enum MenuBarProviderImage {
               let asset = NSImage(contentsOf: url)
         else { return }
         asset.draw(in: rect)
+    }
+
+    private static func drawSymbol(named name: String, in rect: NSRect, color: NSColor) {
+        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: metricSymbolSize, weight: .medium))
+        else { return }
+        symbol.isTemplate = true
+        color.set()
+        symbol.draw(in: rect)
     }
 }
 

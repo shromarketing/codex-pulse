@@ -105,4 +105,58 @@ struct ClaudeBridgeProviderTests {
         #expect(result.snapshot.message?.contains("session key") == true)
         #expect(result.accountDetails == .empty)
     }
+
+    @Test("Menu bar keeps Claude session before the all-model weekly window")
+    func selectsClaudeMenuBarWindowsWithoutFable() {
+        let details = ClaudeAccountDetails(
+            quotaMeters: [
+                ClaudeQuotaMeter(
+                    id: "session",
+                    scope: .session,
+                    providerTitle: nil,
+                    window: QuotaWindow(usedPercent: 4, resetsAt: nil, windowMinutes: 300),
+                    usageKnown: true
+                ),
+                ClaudeQuotaMeter(
+                    id: "weekly",
+                    scope: .weekly,
+                    providerTitle: nil,
+                    window: QuotaWindow(usedPercent: 44, resetsAt: nil, windowMinutes: 10_080),
+                    usageKnown: true
+                ),
+                ClaudeQuotaMeter(
+                    id: "fable",
+                    scope: .modelWeekly,
+                    providerTitle: "Fable",
+                    window: QuotaWindow(usedPercent: 0, resetsAt: nil, windowMinutes: 10_080),
+                    usageKnown: true
+                ),
+            ],
+            planName: "Claude Max 5x",
+            creditBalance: nil
+        )
+
+        #expect(details.menuBarSessionQuota?.remainingPercent == 96)
+        #expect(details.menuBarWeeklyQuota?.remainingPercent == 56)
+    }
+
+    @Test("Menu bar leaves an unavailable Claude quota window empty")
+    func omitsUnknownClaudeMenuBarWindow() {
+        let details = ClaudeAccountDetails(
+            quotaMeters: [
+                ClaudeQuotaMeter(
+                    id: "session-placeholder",
+                    scope: .session,
+                    providerTitle: nil,
+                    window: QuotaWindow(usedPercent: 100, resetsAt: nil, windowMinutes: 300),
+                    usageKnown: false
+                ),
+            ],
+            planName: nil,
+            creditBalance: nil
+        )
+
+        #expect(details.menuBarSessionQuota == nil)
+        #expect(details.menuBarWeeklyQuota == nil)
+    }
 }
