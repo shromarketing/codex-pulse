@@ -21,16 +21,23 @@ enum CommandRunnerError: LocalizedError {
 }
 
 enum ExecutableLocator {
-    static func locate(_ name: String) -> String? {
+    static func locate(
+        _ name: String,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        homeDirectory: String = NSHomeDirectory(),
+        applicationDirectories: [String]? = nil
+    ) -> String? {
+        if name == "codex" {
+            if let override = environment["CODEX_PULSE_CODEX_PATH"], !override.isEmpty {
+                return isExecutable(override) ? override : nil
+            }
+            let directories = applicationDirectories ?? ["/Applications", "\(homeDirectory)/Applications"]
+            return codexCandidates(environment: environment, homeDirectory: homeDirectory, applicationDirectories: directories)
+                .first(where: isExecutable)
+        }
+
         let candidates: [String]
         switch name {
-        case "codex":
-            candidates = [
-                "/Applications/ChatGPT.app/Contents/Resources/codex",
-                "/opt/homebrew/bin/codex",
-                "/usr/local/bin/codex",
-                "/usr/bin/codex",
-            ]
         case "codexbar":
             candidates = [
                 "/opt/homebrew/bin/codexbar",
@@ -46,6 +53,56 @@ enum ExecutableLocator {
             candidates = ["/opt/homebrew/bin/\(name)", "/usr/local/bin/\(name)", "/usr/bin/\(name)"]
         }
         return candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) })
+    }
+
+    static func missingCodexMessage(language: AppLanguage, environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
+        let invalidOverride = environment["CODEX_PULSE_CODEX_PATH"].map { !$0.isEmpty } ?? false
+        let prefix = invalidOverride
+            ? (language == .russian ? "Путь CODEX_PULSE_CODEX_PATH не ведёт к исполняемому файлу. " : "CODEX_PULSE_CODEX_PATH is not executable. ")
+            : (language == .russian ? "Codex CLI не найден. " : "Codex CLI was not found. ")
+        let checked = language == .russian
+            ? "\(invalidOverride ? "Обычные места поиска" : "Проверены"): /Applications и ~/Applications (ChatGPT.app/codex-cli, старые ChatGPT.app и Codex.app), /opt/homebrew/bin, /usr/local/bin, ~/.local/bin и PATH. Укажите CLI через CODEX_PULSE_CODEX_PATH."
+            : "\(invalidOverride ? "Usual search locations" : "Checked"): /Applications and ~/Applications (ChatGPT.app/codex-cli, legacy ChatGPT.app and Codex.app), /opt/homebrew/bin, /usr/local/bin, ~/.local/bin, and PATH. Set CODEX_PULSE_CODEX_PATH to the CLI."
+        return prefix + checked
+    }
+
+    private static func isExecutable(_ path: String) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+            && !isDirectory.boolValue
+            && FileManager.default.isExecutableFile(atPath: path)
+    }
+
+    private static func codexCandidates(
+        environment: [String: String],
+        homeDirectory: String,
+        applicationDirectories: [String]
+    ) -> [String] {
+        var paths: [String] = []
+        for directory in applicationDirectories {
+            let packageDirectory = "\(directory)/ChatGPT.app/Contents/Resources/codex-cli"
+            let manifest = "\(packageDirectory)/codex-package.json"
+            if let data = FileManager.default.contents(atPath: manifest),
+               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let entrypoint = object["entrypoint"] as? String,
+               !entrypoint.isEmpty,
+               !entrypoint.hasPrefix("/"),
+               !entrypoint.split(separator: "/").contains("..") {
+                paths.append("\(packageDirectory)/\(entrypoint)")
+            }
+            paths.append("\(packageDirectory)/bin/codex")
+            paths.append("\(packageDirectory)/CodexCLI.app/Contents/MacOS/codex")
+        }
+        for directory in applicationDirectories {
+            paths.append("\(directory)/ChatGPT.app/Contents/Resources/codex")
+            paths.append("\(directory)/Codex.app/Contents/MacOS/codex")
+            paths.append("\(directory)/Codex.app/Contents/Resources/codex")
+        }
+        paths += ["/opt/homebrew/bin/codex", "/usr/local/bin/codex", "\(homeDirectory)/.local/bin/codex", "/usr/bin/codex"]
+        paths += (environment["PATH"] ?? "")
+            .split(separator: ":", omittingEmptySubsequences: true)
+            .map { "\($0)/codex" }
+        return paths
     }
 }
 

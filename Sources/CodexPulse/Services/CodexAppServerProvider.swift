@@ -15,7 +15,7 @@ struct CodexAppServerProvider: Sendable {
     func fetchData() async -> CodexProviderData {
         guard let executable = ExecutableLocator.locate("codex") else {
             return CodexProviderData(
-                snapshot: .unavailable(.codex, message: "Codex CLI is not installed"),
+                snapshot: .unavailable(.codex, message: ExecutableLocator.missingCodexMessage(language: .english)),
                 accountSummary: nil,
                 accountDaily: [],
                 accountDetails: .empty

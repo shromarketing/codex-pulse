@@ -5,6 +5,15 @@ func tr(_ language: AppLanguage, _ ru: String, _ en: String) -> String {
     L10n.text(language, ru: ru, en: en)
 }
 
+func providerMessage(_ snapshot: ProviderSnapshot, language: AppLanguage) -> String? {
+    guard let message = snapshot.message else { return nil }
+    if snapshot.provider == .codex,
+       message == ExecutableLocator.missingCodexMessage(language: .english) {
+        return ExecutableLocator.missingCodexMessage(language: language)
+    }
+    return message
+}
+
 func percentText(_ value: Double?) -> String {
     guard let value else { return "—" }
     return "\(Int(value.rounded()))%"

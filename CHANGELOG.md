@@ -2,6 +2,13 @@
 
 All notable changes to Codex Pulse are documented here.
 
+## Unreleased — Codex CLI discovery after ChatGPT.app layout change
+
+- Codex discovery now reads `codex-package.json` in either ChatGPT.app location, then checks direct bundled binaries, legacy locations, and the process `PATH`. `CODEX_PULSE_CODEX_PATH` takes precedence.
+- Missing or invalid CLI paths produce actionable Russian and English diagnostics in the dashboard and menu bar.
+- Regression tests cover manifest, direct-path, legacy, PATH, and explicit-override priority.
+- The newly installed native app was relaunched and read a live ChatGPT Pro quota through `Codex App Server`.
+
 ## [0.5.3] — Analytics and reset signals
 
 ### Added

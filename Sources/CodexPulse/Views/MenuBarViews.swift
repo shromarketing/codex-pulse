@@ -382,7 +382,7 @@ struct MenuBarContentView: View {
                 }
                 providerPaceCard(provider)
                 providerQuotaTrend(provider)
-            } else if let message = snapshot.message {
+            } else if let message = providerMessage(snapshot, language: settings.language) {
                 Text(message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -423,7 +423,7 @@ struct MenuBarContentView: View {
                 }
             }
             if quotaMeters.isEmpty {
-                Text(state.codex.message ?? tr(settings.language, "Данные квоты пока недоступны", "Quota data is not available yet"))
+                Text(providerMessage(state.codex, language: settings.language) ?? tr(settings.language, "Данные квоты пока недоступны", "Quota data is not available yet"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let balance = state.codexAccountDetails.creditBalance, balance != "0" {
