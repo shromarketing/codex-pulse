@@ -10,7 +10,7 @@
 - Public OpenAI and Anthropic status endpoints for optional service-health checks, kept separate from local account connection state.
 - Independent caches: lightweight quota refreshes stay responsive while expensive local cost scans and public status checks run less often.
 - Cost analytics are collected as one 90-day base snapshot. The 7/30/90-day totals, models, projects, account-day rows, and receipts are derived synchronously in memory, so changing a period never spawns a CLI process or blocks the interface.
-- Quota analytics use a separate versioned local history. Every Codex and Claude window is keyed independently by provider and window ID; a point is recorded when utilization moves by at least 0.25 percentage points, the reset boundary changes, or the previous point is 30 minutes old. Data is retained for 90 days.
+- Quota analytics use a separate versioned local history. Every Codex and Claude window is keyed independently by provider and window ID. Claude points use the capture time from the source, so polling the same old snapshot does not add a new measurement. A point is recorded when utilization moves by at least 0.25 percentage points, the reset boundary changes, or a fresh measurement arrives after 30 minutes. Data is retained for 90 days.
 - The Usage screen keeps unlike units separate: quota history is charted as utilization percent for both providers, while token, cache, output, project, model, and cost views include only providers whose local source returned those aggregates.
 - Scheduled quota/status synchronization is intentionally quiet. Only first load and explicit user refreshes show the toolbar activity indicator, so background polling cannot make local navigation look blocked.
 - The menu popover owns a bounded screen-aware height so its central `ScrollView` always receives layout space instead of collapsing to zero.
@@ -39,11 +39,15 @@ Fallback: invoke an installed CodexBar CLI in read-only JSON mode.
 
 ### Claude
 
-Primary: the bundled Manifest V3 Pulse Connector runs read-only Usage requests in the main world of an already signed-in `claude.ai` tab. Chrome keeps the browser session; the extension sanitizes the response to percentage, reset, scope, model title, capture time, and plan-label fields before posting it to `127.0.0.1:37421`.
+Experimental direct OAuth: after explicit user consent, Pulse reads the Claude Code Keychain entry with `/usr/bin/security` and extracts the access token. Only the extracted credential fields are cached until expiry or HTTP 401; the raw entry is transiently parsed, not persisted or logged. Requests go to Anthropic's `/api/oauth/usage` from the 75-second Claude loop, the general provider loop and manual refreshes; simultaneous requests are coalesced. Pulse never refreshes credentials. On 401 it rereads Keychain once; an unchanged token pauses polling until a manual refresh. On 429 it waits at least 60 seconds and respects `Retry-After`. A denied Keychain read disables background OAuth attempts until Connect is pressed again. This is not an Anthropic-approved public quota API and does not guarantee desktop-only current data.
+
+Automatic selection prefers a fresh OAuth snapshot, then Pulse Connector, then the Claude desktop app's `plan-usage-history.json` (5-hour and weekly percentages only). A local-file sample older than 30 minutes is rejected. Previously known reset timestamps can be advanced by the corresponding window length for a newer local-file sample. Any window whose reset has passed is removed before UI display; data older than five minutes is visibly timestamped with its source.
+
+Pulse Connector: the bundled Manifest V3 extension runs read-only Usage requests in the main world of an already signed-in `claude.ai` tab. Chrome keeps the browser session; the extension sanitizes the response to percentage, reset, scope, model title, capture time, and plan-label fields before posting it to `127.0.0.1:37421`.
 
 The local bridge binds only to loopback. Pairing uses an eight-character code that expires after ten minutes, rate-limits failed attempts, returns a random 256-bit token once, and persists only its SHA-256 hash in Pulse. Disconnecting revokes the hash. The raw token remains in the paired Chrome profile's extension storage; no Claude cookie or session credential is sent to the app.
 
-Fallback: after separate explicit consent, Pulse can invoke an installed CodexBar CLI in read-only Web/OAuth/Auto mode. That process owns any cookie/Keychain access; Pulse still receives only aggregate JSON. The shared parser retains session, all-model weekly, model-specific weekly, reset, plan, and optional credit-balance fields while discarding account identity and raw credentials.
+Legacy options: after separate explicit consent, Pulse can invoke an installed CodexBar CLI in read-only Web or OAuth mode. That process owns any cookie/Keychain access; Pulse still receives only aggregate JSON. Existing `web` and `oauth` settings remain readable; `oauth` now selects the direct provider, while CodexBar OAuth has its own legacy option.
 
 The limiting known window becomes the provider summary used by the menu-bar meter and pace engine. Reset-only synthetic placeholders remain visible as diagnostics but never masquerade as an exhausted quota.
 

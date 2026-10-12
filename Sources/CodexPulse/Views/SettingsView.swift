@@ -32,7 +32,7 @@ struct SettingsView: View {
                     Text(claudeConnectionTitle)
                 }
             } label: {
-                Label("Claude Web", systemImage: ProviderKind.claude.symbol)
+                Label("Claude", systemImage: ProviderKind.claude.symbol)
                     .foregroundStyle(ProviderKind.claude.tint)
             }
 
@@ -45,6 +45,7 @@ struct SettingsView: View {
             }
 
             if settings.claudeUsageSource == .off {
+                claudeCodeConnectButton
                 Button {
                     state.beginClaudeConnectorPairing()
                 } label: {
@@ -66,7 +67,7 @@ struct SettingsView: View {
             } else {
                 HStack {
                     Button {
-                        Task { await state.refreshClaudeConnection() }
+                        Task { await state.refreshClaudeConnection(manual: true) }
                     } label: {
                         Label(tr(settings.language, "Проверить подключение", "Test connection"), systemImage: "arrow.clockwise")
                     }
@@ -74,11 +75,28 @@ struct SettingsView: View {
                     Spacer()
                     Button(role: .destructive) {
                         settings.claudeUsageSource = .off
+                        settings.claudeOAuthConsent = false
                         settings.claudeBrowserCookieImportAllowed = false
                     } label: {
                         Text(tr(settings.language, "Отключить", "Disconnect"))
                     }
                 }
+            }
+
+            if settings.claudeUsageSource == .oauth || settings.claudeUsageSource == .automatic {
+                claudeCodeConnectButton
+            }
+
+            LabeledContent(tr(settings.language, "Активный источник", "Active source"),
+                value: state.claude.source.isEmpty ? "—" : claudeSourceStatusText(state.claude, language: settings.language))
+            if let date = state.claudeOAuthLastSuccess {
+                LabeledContent(tr(settings.language, "OAuth обновлён", "OAuth updated"),
+                    value: localizedDate(date, language: settings.language, dateStyle: .none, timeStyle: .short))
+            }
+            if let error = state.claudeOAuthError,
+               settings.claudeUsageSource == .oauth || settings.claudeUsageSource == .automatic {
+                Label(claudeErrorText(error, language: settings.language), systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(.orange)
             }
 
             if state.claude.state != .connected,
@@ -97,7 +115,7 @@ struct SettingsView: View {
                         Text(tr(settings.language, "Живые лимиты Claude", "Live Claude limits"))
                             .font(.callout.weight(.semibold))
                         Text(
-                            tr(settings.language, "Получено из Chrome ", "Received from Chrome ")
+                            tr(settings.language, "Получено ", "Received ")
                             + localizedDate(state.claude.updatedAt, language: settings.language, dateStyle: .none, timeStyle: .short)
                         )
                         .font(.caption2)
@@ -116,8 +134,8 @@ struct SettingsView: View {
 
             Text(tr(
                 settings.language,
-                "Pulse Connector передаёт из Chrome только проценты и время сброса. Cookie и история чатов не покидают браузер. Legacy-режим CodexBar может сохранить зашифрованную сессию в macOS Keychain.",
-                "Pulse Connector sends only percentages and reset times from Chrome. Cookies and chat history never leave the browser. Legacy CodexBar mode may cache the encrypted session in macOS Keychain."
+                "Claude Code OAuth читает access token из Keychain только после вашего согласия и запрашивает лимиты у Anthropic. Pulse Connector передаёт только проценты и время сброса. Legacy CodexBar может читать сессию Chrome.",
+                "Claude Code OAuth reads the access token from Keychain only after your consent and requests quotas from Anthropic. Pulse Connector sends percentages and reset times only. Legacy CodexBar may access the Chrome session."
             ))
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -151,6 +169,20 @@ struct SettingsView: View {
                 "CodexBar прочитает cookies claude.ai, чтобы запросить проценты лимитов и время сброса. Pulse не получает и не хранит cookies, но CodexBar может закэшировать зашифрованный заголовок сессии в macOS Keychain. Доступ можно отключить здесь в любой момент.",
                 "CodexBar will read claude.ai cookies to request quota percentages and reset times. Pulse never receives or stores cookies, but CodexBar may cache the encrypted session header in macOS Keychain. You can disconnect it here at any time."
             ))
+        }
+    }
+
+    private var claudeCodeConnectButton: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                Task { await state.connectClaudeCode() }
+            } label: {
+                Label(tr(settings.language, "Подключить Claude Code", "Connect Claude Code"), systemImage: "key")
+            }
+            Text(tr(settings.language,
+                "macOS попросит доступ к ключу Claude Code. Для сохранения разрешения после пересборки выберите «Всегда разрешать».",
+                "macOS will ask for access to the Claude Code key. Choose Always Allow to keep permission after rebuilding."))
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -342,8 +374,8 @@ struct SettingsView: View {
                 }
                 Text(tr(
                     settings.language,
-                    "Pulse читает только публичную ленту Tibo через relay. Лимиты, аккаунт и история чатов никуда не отправляются. Уведомление — ранний сигнал, факт подтверждается лимитом в приложении.",
-                    "Pulse reads only Tibo's public feed through a relay. Quotas, account data, and chat history are never sent. This is an early signal; the app confirms the actual reset from your quota."
+                    "Pulse читает публичную ленту Tibo через relay. Если relay устарел, публичные индексы используются только для поиска оригинального поста Tibo. Лимиты, аккаунт и история чатов никуда не отправляются. Уведомление — ранний сигнал, факт подтверждается лимитом в приложении.",
+                    "Pulse reads Tibo's public feed through a relay. If the relay is stale, public indexes are used only to find Tibo's original post. Quotas, account data, and chat history are never sent. This is an early signal; the app confirms the actual reset from your quota."
                 ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -480,7 +512,7 @@ struct SettingsView: View {
                 "Install Pulse Connector in the Chrome profile where Claude is open, enter the pairing code, and press Refresh in the extension."
             )
         }
-        return message
+        return claudeErrorText(message, language: settings.language)
     }
 
     private func connectionColor(_ value: ProviderConnectionState) -> Color {

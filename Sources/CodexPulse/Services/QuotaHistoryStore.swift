@@ -31,14 +31,18 @@ actor QuotaHistoryStore {
     ) -> [QuotaHistoryPoint] {
         var points = load()
         for sample in samples where sample.usedPercent.isFinite {
+            let measuredAt = sample.capturedAt ?? now
+            guard measuredAt <= now.addingTimeInterval(60),
+                  sample.resetsAt == nil || sample.resetsAt! > measuredAt else { continue }
             let used = min(100, max(0, sample.usedPercent))
             let previous = points.last {
                 $0.provider == sample.provider && $0.windowID == sample.windowID
             }
             let shouldRecord: Bool
             if let previous {
+                if sample.capturedAt != nil && measuredAt <= previous.date { continue }
                 let moved = abs(previous.usedPercent - used) >= 0.25
-                let stale = now.timeIntervalSince(previous.date) >= 30 * 60
+                let stale = measuredAt.timeIntervalSince(previous.date) >= 30 * 60
                 let resetChanged = resetBoundaryChanged(previous.resetsAt, sample.resetsAt)
                 shouldRecord = moved || stale || resetChanged
             } else {
@@ -46,14 +50,15 @@ actor QuotaHistoryStore {
             }
             guard shouldRecord else { continue }
             points.append(QuotaHistoryPoint(
-                date: now,
+                date: measuredAt,
                 provider: sample.provider,
                 windowID: sample.windowID,
                 scope: sample.scope,
                 title: sample.title,
                 usedPercent: used,
                 resetsAt: sample.resetsAt,
-                windowMinutes: sample.windowMinutes
+                windowMinutes: sample.windowMinutes,
+                source: sample.source
             ))
         }
         let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: now) ?? .distantPast
@@ -87,7 +92,8 @@ actor QuotaHistoryStore {
             let key = "\(point.provider.rawValue)-\(point.windowID)"
             if let previous = latestByWindow[key] {
                 let moved = abs(previous.usedPercent - point.usedPercent) >= 0.25
-                let stale = point.date.timeIntervalSince(previous.date) >= 30 * 60
+                let stale = (point.provider == .codex || point.source != nil)
+                    && point.date.timeIntervalSince(previous.date) >= 30 * 60
                 let resetChanged = resetBoundaryChanged(previous.resetsAt, point.resetsAt)
                 guard moved || stale || resetChanged else { continue }
             }

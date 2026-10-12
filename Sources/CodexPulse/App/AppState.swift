@@ -34,6 +34,8 @@ final class AppState: ObservableObject {
     @Published var notificationPermissionMessage = ""
     @Published var claudePairingCode: String?
     @Published var claudeConnectorPaired = ClaudeBrowserBridge.shared.isPaired
+    @Published var claudeOAuthLastSuccess: Date?
+    @Published var claudeOAuthError: String?
 
     let settings = SettingsStore.shared
     private let coordinator = ProviderCoordinator()
@@ -47,6 +49,8 @@ final class AppState: ObservableObject {
     private let resetSignalMonitor = ResetSignalMonitor()
     private let claudeResetSignalMonitor = ClaudeResetSignalMonitor()
     private var refreshLoop: Task<Void, Never>?
+    private var claudeRefreshLoop: Task<Void, Never>?
+    private var claudeDisplayTimer: Task<Void, Never>?
     private var isRefreshing = false
     private var hasStarted = false
     private var lastAnalyticsRefresh: Date?
@@ -133,11 +137,23 @@ final class AppState: ObservableObject {
                 if !Task.isCancelled { await self.refresh() }
             }
         }
+        claudeRefreshLoop = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(75))
+                guard let self, !Task.isCancelled else { return }
+                if self.settings.claudeUsageSource != .off {
+                    await self.refreshClaudeConnection()
+                }
+            }
+        }
     }
 
     func refresh(forceAnalytics: Bool = false) async {
         guard !isRefreshing else { return }
         isRefreshing = true
+        if forceAnalytics && lastUpdated != nil {
+            await ClaudeOAuthUsageProvider.shared.resumeAfterManualRefresh()
+        }
         let shouldShowIndicator = forceAnalytics || lastUpdated == nil
         if shouldShowIndicator { showsRefreshIndicator = true }
 
@@ -156,7 +172,8 @@ final class AppState: ObservableObject {
         async let codexResult = coordinator.fetchCodexData()
         async let claudeResult = coordinator.fetchClaudeData(
             source: settings.claudeUsageSource,
-            allowBrowserCookieImport: settings.claudeBrowserCookieImportAllowed
+            allowBrowserCookieImport: settings.claudeBrowserCookieImportAllowed,
+            oauthAuthorized: settings.claudeOAuthConsent
         )
         async let costResult: [ProviderKind: UsageAnalyticsSnapshot] = analyticsEnabled && analyticsIsDue
             ? costProvider.fetch(days: UsagePeriod.quarter.rawValue)
@@ -169,6 +186,8 @@ final class AppState: ObservableObject {
         codex = codexData.snapshot
         claude = claudeData.snapshot
         claudeAccountDetails = claudeData.accountDetails
+        scheduleClaudeDisplayUpdate()
+        await updateClaudeOAuthStatus()
         codexAccountDetails = codexData.accountDetails
         let canReuseCachedAnalytics = analyticsEnabled && costData.isEmpty && !cachedAnalytics.isEmpty
         let resolvedCostData = canReuseCachedAnalytics ? cachedAnalytics : costData
@@ -207,16 +226,20 @@ final class AppState: ObservableObject {
         analytics = analyticsBase.mapValues { $0.filtered(to: period) }
     }
 
-    func refreshClaudeConnection() async {
+    func refreshClaudeConnection(manual: Bool = false) async {
+        if manual { await ClaudeOAuthUsageProvider.shared.resumeAfterManualRefresh() }
         let requestedSource = settings.claudeUsageSource
-        claude = .loading(.claude)
+        if claude.state != .connected { claude = .loading(.claude) }
         let data = await coordinator.fetchClaudeData(
             source: requestedSource,
-            allowBrowserCookieImport: settings.claudeBrowserCookieImportAllowed
+            allowBrowserCookieImport: settings.claudeBrowserCookieImportAllowed,
+            oauthAuthorized: settings.claudeOAuthConsent
         )
         guard settings.claudeUsageSource == requestedSource else { return }
         claude = data.snapshot
         claudeAccountDetails = data.accountDetails
+        scheduleClaudeDisplayUpdate()
+        await updateClaudeOAuthStatus()
         history = await historyStore.record([codex, claude])
         quotaHistory = await quotaHistoryStore.record(quotaHistorySamples())
         pace[.claude] = paceEngine.insight(for: claude, history: history)
@@ -227,6 +250,43 @@ final class AppState: ObservableObject {
                 insight: pace[.claude] ?? .unknown,
                 settings: settings
             )
+        }
+    }
+
+    func connectClaudeCode() async {
+        settings.claudeOAuthConsent = true
+        if settings.claudeUsageSource == .off { settings.claudeUsageSource = .automatic }
+        await ClaudeOAuthUsageProvider.shared.resumeAfterUserAction()
+        await refreshClaudeConnection()
+    }
+
+    private func updateClaudeOAuthStatus() async {
+        let status = await ClaudeOAuthUsageProvider.shared.status
+        claudeOAuthLastSuccess = status.lastSuccess
+        claudeOAuthError = status.lastError
+        if status.permissionDenied { settings.claudeOAuthConsent = false }
+    }
+
+    private func scheduleClaudeDisplayUpdate() {
+        claudeDisplayTimer?.cancel()
+        guard claude.state == .connected else { return }
+        let now = Date.now
+        let reset = claudeAccountDetails.quotaMeters.compactMap(\.window.resetsAt).filter { $0 > now }.min()
+        let staleAt = claude.updatedAt.addingTimeInterval(ClaudeUsageResolver.staleLabelAfter)
+        let next = [reset, staleAt > now ? staleAt : nil].compactMap { $0 }.min()
+        guard let next else { return }
+        claudeDisplayTimer = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(0.1, next.timeIntervalSinceNow + 0.1)))
+            guard let self, !Task.isCancelled else { return }
+            let current = ClaudeProviderData(snapshot: self.claude, accountDetails: self.claudeAccountDetails)
+            if let valid = ClaudeUsageResolver.valid(current) {
+                self.claude = valid.snapshot
+                self.claudeAccountDetails = valid.accountDetails
+            } else {
+                self.claude = .unavailable(.claude, message: "Claude quota reset; waiting for a fresh measurement")
+                self.claudeAccountDetails = .empty
+            }
+            self.scheduleClaudeDisplayUpdate()
         }
     }
 
@@ -372,9 +432,15 @@ final class AppState: ObservableObject {
     }
 
     private func applyClaudeConnectorData(_ data: ClaudeProviderData) {
-        guard settings.claudeUsageSource == .browserExtension else { return }
-        claude = data.snapshot
-        claudeAccountDetails = data.accountDetails
+        guard settings.claudeUsageSource == .browserExtension || settings.claudeUsageSource == .automatic else { return }
+        if settings.claudeUsageSource == .automatic {
+            Task { await refreshClaudeConnection() }
+            return
+        }
+        guard let valid = ClaudeUsageResolver.valid(data) else { return }
+        claude = valid.snapshot
+        claudeAccountDetails = valid.accountDetails
+        scheduleClaudeDisplayUpdate()
         claudeConnectorPaired = true
         claudePairingCode = nil
         lastUpdated = .now
@@ -440,7 +506,9 @@ final class AppState: ObservableObject {
                 title: meter.providerTitle,
                 usedPercent: meter.window.usedPercent,
                 resetsAt: meter.window.resetsAt,
-                windowMinutes: meter.window.windowMinutes
+                windowMinutes: meter.window.windowMinutes,
+                capturedAt: claude.updatedAt,
+                source: claude.source
             )
         })
         if !samples.contains(where: { $0.provider == .claude }),

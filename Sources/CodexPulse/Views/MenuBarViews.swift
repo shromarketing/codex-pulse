@@ -379,6 +379,8 @@ struct MenuBarContentView: View {
                     quotaSection
                 } else {
                     claudeQuotaSection
+                    Text(claudeSourceStatusText(snapshot, language: settings.language))
+                        .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 providerPaceCard(provider)
                 providerQuotaTrend(provider)

@@ -56,6 +56,24 @@
 
 final result: passed — 44 Swift tests in 9 suites plus the popup/parser regression pass; the native release build and locally installed app pass strict code-sign verification. The rebuilt single-text menu-bar label and relaunched app returned live Codex and Claude quota snapshots. Public distribution still separately requires onboarding, Developer ID signing, notarization, and an update channel.
 
+## 2026-10-12 — Public preview 0.5.4
+
+- Local verification: `Scripts/test.sh` passed 62 Swift tests in 11 suites and the browser popup/parser regression checks. `Scripts/build-app.sh release native` produced the arm64 app with version 0.5.4 (33).
+- Release publication requires the GitHub universal build and SHA-256 checks to pass; the previous v0.5.3 release and the user's installed copy are not replaced.
+- Live UI blocker: the new build has not been reinstalled or restarted in the user's running session. Dashboard, menu bar, floating widget, RU/EN and all three themes have not been fully rechecked for this release. Older visual QA is not a new account-level Claude smoke test.
+- Claude OAuth remains an opt-in experimental source; HTTP 429 and stale desktop history prevent a guarantee of desktop-only fresh quotas. No Claude mod is included.
+
+final result: blocked — complete live UI/account verification remains outstanding; this release is explicitly a public preview, not a fully verified stable release.
+
+## 2026-09-22 — Fresh Tibo reset announcements
+
+- Fixed: the primary public relay was returning `read_origin: test` entries ending on 2026-09-06. Pulse now recognizes that stale condition, then checks two read-only public indexes only to discover an original `x.com/thsottiaux/status/...` link. It never reads the user's X session, account data, chats, or private data.
+- Fixed: an explicit promise such as “I promised a reset for Tuesday” is now accepted even when the post does not repeat the words `Codex`, `quota`, or `limits`. A weekday without a stated hour remains a weekday-only hint in Russian; Pulse does not invent a Moscow reset time.
+- Regression/build check: `Scripts/test.sh` passed 50 Swift tests in 9 suites, including current relay-test data plus both independent index layouts. The universal release build passed strict code-sign verification.
+- Live check: the freshly installed Pulse completed its startup check and Settings displayed “Найден новый анонс сброса” with the direct original link `x.com/thsottiaux/status/2102254445082116335`.
+
+final result: passed — current Tibo announcement is visible after a manual/startup check, linked to the original post, and remains an early announcement rather than a claim that an account-level reset has already happened.
+
 ## 2026-09-19 — Claude session + week in menu bar
 
 - Implemented: the Percentage status item keeps the official Codex and Claude assets, then shows a native timer with the current Claude session first and a calendar with the all-model weekly window second. Fable/model-specific windows stay in the expanded application surface and never crowd the menu bar.

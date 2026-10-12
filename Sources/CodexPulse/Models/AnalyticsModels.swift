@@ -15,6 +15,8 @@ struct QuotaHistorySample: Hashable, Sendable {
     let usedPercent: Double
     let resetsAt: Date?
     let windowMinutes: Int?
+    var capturedAt: Date? = nil
+    var source: String? = nil
 }
 
 struct QuotaHistoryPoint: Codable, Hashable, Identifiable, Sendable {
@@ -26,6 +28,7 @@ struct QuotaHistoryPoint: Codable, Hashable, Identifiable, Sendable {
     let usedPercent: Double
     let resetsAt: Date?
     let windowMinutes: Int?
+    var source: String? = nil
 
     var id: String {
         "\(provider.rawValue)-\(windowID)-\(date.timeIntervalSince1970)"

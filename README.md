@@ -54,7 +54,7 @@ The full agent checklist is in [INSTALL_WITH_AI.md](INSTALL_WITH_AI.md).
 
 ### Option B — download the DMG or ZIP
 
-1. Open [Codex Pulse 0.5.3 on GitHub Releases](https://github.com/shromarketing/codex-pulse/releases/tag/v0.5.3).
+1. Open [Codex Pulse 0.5.4 on GitHub Releases](https://github.com/shromarketing/codex-pulse/releases/tag/v0.5.4).
 2. Download the universal `.dmg` or `.zip` and compare its SHA-256 with `SHA256SUMS`.
 3. Move **Codex Pulse.app** to Applications.
 4. Try to open it once. If macOS blocks it, open **System Settings → Privacy & Security → Open Anyway** and confirm.
@@ -89,11 +89,15 @@ Sign in to the Codex app on the same Mac. Pulse reads aggregate, read-only rate-
 
 The connector performs the Usage request inside the signed-in Claude tab. Cookies and chats remain in Chrome; only sanitized quota windows and reset timestamps cross a loopback-only connection. See [the connector guide](docs/CLAUDE_CONNECTOR.md).
 
-If you only use the Claude desktop app, sign in to Claude Web in Chrome once for this preview. Direct desktop-only integration is not available yet.
+The connector needs an open signed-in Claude Web tab for fresh measurements; signing in once does not guarantee background updates after closing it.
+
+### Claude Code OAuth — experimental, opt-in
+
+Settings also offers **Claude Code · OAuth** and **Automatic**, with a separate **Connect Claude Code** consent action. Pulse reads the existing Claude Code Keychain entry, keeps the extracted access token only in memory, and queries Anthropic's usage endpoint. It does not renew credentials. This is not an Anthropic-approved public quota API, and rate limiting (HTTP 429) can prevent fresh data. Automatic mode can use the connector or a recent local desktop-history sample; that file may remain stale. Do not rely on this preview for guaranteed desktop-only live quotas. The proposed Claude Code mod integration is not included.
 
 ## Privacy and security
 
-Codex Pulse does **not** collect chat history, prompt bodies, passwords, browser cookies, API keys, access tokens, account emails or hidden analytics. Local history contains aggregate quota and usage numbers only.
+Codex Pulse does **not** collect chat history, prompt bodies, passwords, browser cookies, account emails or hidden analytics. Local history contains aggregate quota and usage numbers only. The optional Claude OAuth source reads an existing credential only after consent; access tokens are not persisted or logged.
 
 AI task routing sends only the task text that you explicitly enter and submit. Local routing stays on-device. Read [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) before connecting a provider.
 
@@ -109,7 +113,7 @@ Release artifacts are written to `dist/`: universal ZIP, drag-to-Applications DM
 
 ## Project status
 
-Version 0.5.3 is a public preview. Its automated checks, native package smoke test and checksum verification pass on GitHub Actions; the tagged universal build was also visually checked on macOS before publication.
+Version 0.5.4 is a public preview. Automated tests, universal packaging and checksums are checked by the release workflow. See the release notes for current verification results and known limitations; do not treat earlier visual QA as verification of every new Claude integration path.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)

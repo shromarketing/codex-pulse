@@ -17,6 +17,7 @@ enum ClaudeUsageSource: String, CaseIterable, Identifiable, Sendable {
     case web
     case oauth
     case automatic
+    case legacyOAuth
 
     var id: String { rawValue }
 
@@ -27,6 +28,7 @@ enum ClaudeUsageSource: String, CaseIterable, Identifiable, Sendable {
         case .web: "web"
         case .oauth: "oauth"
         case .automatic: "auto"
+        case .legacyOAuth: "oauth"
         }
     }
 }

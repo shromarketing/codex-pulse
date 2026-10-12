@@ -221,15 +221,14 @@ private struct ProviderCard: View {
                             Label(tr(settings.language, "сегодня не более \(Int(safe.rounded()))%", "no more than \(Int(safe.rounded()))% today"), systemImage: "speedometer")
                                 .font(.caption).foregroundStyle(state.pace[snapshot.provider]?.level.color ?? .secondary)
                         }
-                        Text(snapshot.source).font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+                        Text(claudeSourceStatusText(snapshot, language: settings.language)).font(.caption2).foregroundStyle(.tertiary).lineLimit(2)
                     }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(tr(settings.language, "Не подключён", "Not connected")).font(.title3.weight(.medium))
-                    Text(snapshot.provider == .claude
-                         ? tr(settings.language, "Подключите Claude Web в настройках. Pulse не запрашивает пароль.", "Connect Claude Web in Settings. Pulse never asks for your password.")
-                         : providerMessage(snapshot, language: settings.language) ?? tr(settings.language, "Нет данных", "No data"))
+                    Text(providerMessage(snapshot, language: settings.language)
+                         ?? tr(settings.language, "Нет данных", "No data"))
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)

@@ -69,10 +69,12 @@ struct FloatingWidgetView: View {
                 Spacer(minLength: 2)
                 widgetControls(isExpanded: false)
             }
-            Text(selectedResetText)
+            Text(activeProvider == .claude && Date.now.timeIntervalSince(state.claude.updatedAt) > 5 * 60
+                ? claudeSourceStatusText(state.claude, language: settings.language)
+                : selectedResetText)
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
@@ -207,6 +209,10 @@ struct FloatingWidgetView: View {
                 Label(provider.displayName, systemImage: provider.symbol)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(provider.tint)
+                if provider == .claude {
+                    Text(claudeSourceStatusText(state.claude, language: settings.language))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
 
                 ForEach(Array(meters.prefix(showAllWindows ? 6 : 2).enumerated()), id: \.element.id) { index, meter in
                     VStack(alignment: .leading, spacing: 5) {
@@ -524,11 +530,14 @@ struct FloatingWidgetView: View {
     }
 
     private var widgetSummary: String {
-        tr(
+        let summary = tr(
             settings.language,
             "\(activeProvider.displayName): осталось \(percentText(selectedSnapshot.remainingPercent)). \(selectedResetText). \(quotaForecastText(selectedInsight, language: settings.language))",
             "\(activeProvider.displayName): \(percentText(selectedSnapshot.remainingPercent)) left. \(selectedResetText). \(quotaForecastText(selectedInsight, language: settings.language))"
         )
+        return activeProvider == .claude
+            ? summary + ". " + claudeSourceStatusText(state.claude, language: settings.language)
+            : summary
     }
 
     private var selectedResetText: String {
@@ -549,7 +558,7 @@ struct FloatingWidgetView: View {
         let codexPlan = codexPlanName(state.codexAccountDetails.planType, language: settings.language)
             ?? tr(settings.language, "Codex подключён", "Codex connected")
         guard state.claude.state == .connected else { return codexPlan }
-        return codexPlan + " · " + (state.claudeAccountDetails.planName ?? "Claude")
+        return codexPlan + " · " + claudeSourceStatusText(state.claude, language: settings.language)
     }
 }
 

@@ -4,6 +4,19 @@ import Testing
 
 @Suite("Quota window history")
 struct QuotaHistoryStoreTests {
+    @Test("A captured Claude snapshot is recorded once even after the heartbeat interval")
+    func doesNotRepeatOldSnapshot() async {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codex-pulse-capture-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = QuotaHistoryStore(fileURL: directory.appendingPathComponent("history.json"))
+        let capturedAt = Date(timeIntervalSince1970: 1_786_487_200)
+        var sample = claudeSamples(reset: capturedAt.addingTimeInterval(3_600))[0]
+        sample.capturedAt = capturedAt
+        #expect(await store.record([sample], now: capturedAt).count == 1)
+        #expect(await store.record([sample], now: capturedAt.addingTimeInterval(3_600)).count == 1)
+    }
+
     @Test("Stores Claude session, weekly, and model windows independently")
     func storesIndependentClaudeWindows() async throws {
         let directory = FileManager.default.temporaryDirectory

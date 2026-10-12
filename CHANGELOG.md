@@ -2,12 +2,27 @@
 
 All notable changes to Codex Pulse are documented here.
 
-## Unreleased — Codex CLI discovery after ChatGPT.app layout change
+## [0.5.4] — 2026-10-12 — Quota freshness and reset announcements
+
+- Claude's menu-bar readout now shows the current session first and the all-model week second, with distinct small window labels and prominent remaining percentages.
+- Reset announcements can fall back from stale/test relay data to public indexes that link to Tibo's original post; scheduled weekday announcements are recognized without inventing a precise reset time.
+
+### Experimental Claude Code OAuth quotas
+
+- Added direct Claude Code OAuth quota polling with explicit Keychain consent, in-memory access token, 75-second refresh, 401/429 backoff, and no token refresh.
+- Added automatic Claude fallback to Pulse Connector and the Claude desktop app's local percentage history. Expired reset windows are hidden, stale readings identify their capture time and source, and repeated old snapshots no longer create quota-history points.
+
+### Codex CLI discovery after ChatGPT.app layout change
 
 - Codex discovery now reads `codex-package.json` in either ChatGPT.app location, then checks direct bundled binaries, legacy locations, and the process `PATH`. `CODEX_PULSE_CODEX_PATH` takes precedence.
 - Missing or invalid CLI paths produce actionable Russian and English diagnostics in the dashboard and menu bar.
 - Regression tests cover manifest, direct-path, legacy, PATH, and explicit-override priority.
 - The newly installed native app was relaunched and read a live ChatGPT Pro quota through `Codex App Server`.
+
+### Preview limitations
+
+- Direct Claude OAuth is opt-in and experimental, not an Anthropic-approved public quota API. HTTP 429 may prevent fresh data; the desktop history file can remain stale. Desktop-only live quotas are not guaranteed.
+- The discussed Claude Code mod integration is not included. The package is ad-hoc signed, without Developer ID or notarization.
 
 ## [0.5.3] — Analytics and reset signals
 

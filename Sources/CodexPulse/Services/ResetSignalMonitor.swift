@@ -122,38 +122,83 @@ func resetSignalSummary(_ signal: ResetSignal, language: AppLanguage) -> String 
 @MainActor
 final class ResetSignalMonitor {
     static let defaultEndpoint = URL(string: "https://api.dayclaw.com/api/source/public/x/thsottiaux/items")!
+    static let fallbackEndpoints = [
+        URL(string: "https://codex.gussuriworks.com/en")!,
+        URL(string: "https://reset-tracker.com/codex")!
+    ]
     static let pollInterval: TimeInterval = 30 * 60
+    private static let fallbackFreshnessWindow: TimeInterval = 36 * 60 * 60
 
     private let defaults: UserDefaults
     private let endpoint: URL
+    private let fallbackEndpoints: [URL]
     private let stateKey = "resetSignals.monitorState.v1"
 
-    init(defaults: UserDefaults = .standard, endpoint: URL = ResetSignalMonitor.defaultEndpoint) {
+    init(
+        defaults: UserDefaults = .standard,
+        endpoint: URL = ResetSignalMonitor.defaultEndpoint,
+        fallbackEndpoints: [URL] = ResetSignalMonitor.fallbackEndpoints
+    ) {
         self.defaults = defaults
         self.endpoint = endpoint
+        self.fallbackEndpoints = fallbackEndpoints
     }
 
     func poll() async -> ResetSignalMonitorUpdate {
         do {
-            var request = URLRequest(url: endpoint)
-            request.timeoutInterval = 6
-            request.cachePolicy = .reloadIgnoringLocalCacheData
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-            return ingest(try Self.decodeSignals(from: data), checkedAt: .now)
+            let primaryData = try await loadData(from: endpoint)
+            let primaryFeed = try Self.decodeFeed(from: primaryData)
+            let primarySignals = Self.decodeSignals(from: primaryFeed)
+
+            if Self.requiresFallback(for: primaryFeed, now: .now),
+               let fallbackSignals = try? await loadFallbackSignals() {
+                return ingest(Self.merge(primarySignals, fallbackSignals), checkedAt: .now)
+            }
+
+            return ingest(primarySignals, checkedAt: .now)
         } catch {
-            let stored = loadState()
-            return ResetSignalMonitorUpdate(
-                status: ResetSignalMonitorStatus(
-                    state: .unavailable,
-                    checkedAt: .now,
-                    latestSignal: stored.latestSignal,
-                    recentSignals: stored.recentSignals,
-                    message: "Reset signal source is unavailable"
-                ),
-                signalToNotify: nil
-            )
+            do {
+                return ingest(try await loadFallbackSignals(), checkedAt: .now)
+            } catch {
+                return unavailableUpdate()
+            }
         }
+    }
+
+    private func loadData(from url: URL) async throws -> Data {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("CodexPulse/0.5.3 (read-only public reset monitor)", forHTTPHeaderField: "User-Agent")
+        request.setValue("text/html,application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+        return data
+    }
+
+    private func loadFallbackSignals() async throws -> [ResetSignal] {
+        for endpoint in fallbackEndpoints {
+            guard let data = try? await loadData(from: endpoint),
+                  let signals = try? Self.decodeFallbackSignals(from: data),
+                  !signals.isEmpty
+            else { continue }
+            return signals
+        }
+        throw URLError(.cannotLoadFromNetwork)
+    }
+
+    private func unavailableUpdate() -> ResetSignalMonitorUpdate {
+        let stored = loadState()
+        return ResetSignalMonitorUpdate(
+            status: ResetSignalMonitorStatus(
+                state: .unavailable,
+                checkedAt: .now,
+                latestSignal: stored.latestSignal,
+                recentSignals: stored.recentSignals,
+                message: "Reset signal source is unavailable"
+            ),
+            signalToNotify: nil
+        )
     }
 
     func ingest(_ signals: [ResetSignal], checkedAt: Date) -> ResetSignalMonitorUpdate {
@@ -198,7 +243,45 @@ final class ResetSignalMonitor {
     }
 
     static func decodeSignals(from data: Data) throws -> [ResetSignal] {
-        let feed = try JSONDecoder().decode(Feed.self, from: data)
+        decodeSignals(from: try decodeFeed(from: data))
+    }
+
+    static func requiresFallback(fromPrimaryFeed data: Data, now: Date = .now) throws -> Bool {
+        requiresFallback(for: try decodeFeed(from: data), now: now)
+    }
+
+    static func decodeFallbackSignals(from data: Data) throws -> [ResetSignal] {
+        let page = String(decoding: data, as: UTF8.self)
+        let marker = page.range(of: "Related Tibo post") ?? page.range(of: "announcement-post")
+        guard let marker else { return [] }
+        let fragment = String(page[marker.lowerBound...].prefix(25_000))
+        guard let sourceText = firstCapture(#"href="(https://x\.com/thsottiaux/status/[0-9]+)""#, in: fragment),
+              let sourceURL = URL(string: sourceText),
+              let identifier = sourceURL.pathComponents.last,
+              let quote = firstCapture(#"<blockquote\b[^>]*>(.*?)</blockquote>"#, in: fragment),
+              let publishedRaw = firstCapture(#"<time\b[^>]*\b[dD]ate[Tt]ime="([^"]+)""#, in: fragment)
+        else { return [] }
+
+        let content = plainText(fromHTML: quote)
+        guard let kind = classify(content) else { return [] }
+        let publishedAt = parseDate(publishedRaw)
+        let timing = timing(in: content, publishedAt: publishedAt)
+        return [ResetSignal(
+            id: identifier,
+            kind: kind,
+            sourceURL: sourceURL,
+            publishedAt: publishedAt,
+            timingHint: timing.hint,
+            estimatedResetAt: timing.estimatedAt,
+            summary: summary(from: content)
+        )]
+    }
+
+    private static func decodeFeed(from data: Data) throws -> Feed {
+        try JSONDecoder().decode(Feed.self, from: data)
+    }
+
+    private static func decodeSignals(from feed: Feed) -> [ResetSignal] {
         guard feed.source.userName.lowercased() == "thsottiaux" else { return [] }
 
         return feed.items.compactMap { item in
@@ -220,6 +303,23 @@ final class ResetSignalMonitor {
         }
     }
 
+    private static func requiresFallback(for feed: Feed, now: Date) -> Bool {
+        if feed.items.contains(where: { $0.readOrigin?.lowercased() == "test" }) { return true }
+        let newest = feed.items.compactMap { parseDate($0.publishedAt) }.max() ?? .distantPast
+        return now.timeIntervalSince(newest) > fallbackFreshnessWindow
+    }
+
+    private static func merge(_ primary: [ResetSignal], _ fallback: [ResetSignal]) -> [ResetSignal] {
+        var byID: [String: ResetSignal] = [:]
+        for signal in primary + fallback {
+            let existing = byID[signal.id]
+            if existing == nil || (signal.publishedAt ?? .distantPast) > (existing?.publishedAt ?? .distantPast) {
+                byID[signal.id] = signal
+            }
+        }
+        return Array(byID.values)
+    }
+
     private static func classify(_ text: String) -> ResetSignalKind? {
         let value = text.lowercased()
         if value.range(of: #"\bbanked\s+reset\b"#, options: .regularExpression) != nil {
@@ -228,7 +328,14 @@ final class ResetSignalMonitor {
 
         let mentionsReset = value.range(of: #"\b(?:reset|resets|resetting|reseted|restored|restoring)\b"#, options: .regularExpression) != nil
         let mentionsQuota = value.range(of: #"\b(?:codex|usage|rate|quota|limit|limits)\b"#, options: .regularExpression) != nil
-        return mentionsReset && mentionsQuota ? .usageReset : nil
+        let scheduledReset = value.range(
+            of: #"\b(?:promise[ds]?|will|plan(?:ned)?|coming|lands?|scheduled)\b[^.!?\n]{0,80}\breset\b"#,
+            options: .regularExpression
+        ) != nil || value.range(
+            of: #"\breset\b[^.!?\n]{0,80}\b(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b"#,
+            options: .regularExpression
+        ) != nil
+        return mentionsReset && (mentionsQuota || scheduledReset) ? .usageReset : nil
     }
 
     private static func timing(in text: String, publishedAt: Date?) -> (hint: String?, estimatedAt: Date?) {
@@ -246,8 +353,14 @@ final class ResetSignalMonitor {
         if let explicit = explicitClockTime(in: value, publishedAt: publishedAt) {
             return (explicit.hint, explicit.date)
         }
+        if let weekday = weekdayHint(in: value) { return ("weekday:\(weekday)", nil) }
         if value.contains("today") { return ("today", nil) }
         return (nil, nil)
+    }
+
+    private static func weekdayHint(in value: String) -> String? {
+        ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+            .first { value.range(of: "\\b" + $0 + "\\b", options: .regularExpression) != nil }
     }
 
     private static func explicitClockTime(in value: String, publishedAt: Date?) -> (hint: String, date: Date)? {
@@ -320,6 +433,8 @@ final class ResetSignalMonitor {
         guard let raw else { return nil }
         let iso = ISO8601DateFormatter()
         if let date = iso.date(from: raw) { return date }
+        iso.formatOptions.insert(.withFractionalSeconds)
+        if let date = iso.date(from: raw) { return date }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -332,6 +447,28 @@ final class ResetSignalMonitor {
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return String(normalized.prefix(280))
+    }
+
+    private static func firstCapture(_ pattern: String, in value: String) -> String? {
+        guard let expression = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else { return nil }
+        let range = NSRange(value.startIndex..., in: value)
+        guard let match = expression.firstMatch(in: value, range: range),
+              let capture = Range(match.range(at: 1), in: value)
+        else { return nil }
+        return String(value[capture])
+    }
+
+    private static func plainText(fromHTML value: String) -> String {
+        let withoutTags = value.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
+        return withoutTags
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&#x27;", with: "'")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func newest(in signals: [ResetSignal]) -> ResetSignal? {
@@ -379,11 +516,13 @@ private extension ResetSignalMonitor {
         let url: String
         let author: String
         let publishedAt: String?
+        let readOrigin: String?
 
         enum CodingKeys: String, CodingKey {
             case id, content, url, author
             case externalID = "external_id"
             case publishedAt = "published_at"
+            case readOrigin = "read_origin"
         }
     }
 

@@ -77,7 +77,7 @@ enum ClaudeBrowserBridgeParser {
                 quota: limiting.window,
                 source: "Claude Web · Pulse Connector",
                 message: nil,
-                updatedAt: parseDate(envelope.capturedAt) ?? .now,
+                updatedAt: parseDate(envelope.capturedAt) ?? .distantPast,
                 history: []
             ),
             accountDetails: ClaudeAccountDetails(

@@ -66,6 +66,45 @@ struct ResetSignalMonitorTests {
         #expect(signals.allSatisfy { $0.sourceURL.host == "x.com" })
     }
 
+    @Test("Accepts Tibo's explicit scheduled reset without quota keywords")
+    @MainActor
+    func decodesScheduledResetPromise() throws {
+        let signals = try ResetSignalMonitor.decodeSignals(from: scheduledResetFixtureData)
+
+        #expect(signals.count == 1)
+        #expect(signals.first?.id == "2102254445082116335")
+        #expect(signals.first?.kind == .usageReset)
+        #expect(signals.first?.timingHint == "weekday:tuesday")
+        #expect(signals.first?.estimatedResetAt == nil)
+    }
+
+    @Test("Uses the public fallback only when it exposes Tibo's original X post")
+    @MainActor
+    func decodesFallbackOriginalPost() throws {
+        let signals = try ResetSignalMonitor.decodeFallbackSignals(from: fallbackFixtureData)
+
+        #expect(signals.count == 1)
+        #expect(signals.first?.id == "2102254445082116335")
+        #expect(signals.first?.sourceURL.absoluteString == "https://x.com/thsottiaux/status/2102254445082116335")
+        #expect(signals.first?.publishedAt == Date(timeIntervalSince1970: 1_790_051_492))
+    }
+
+    @Test("Decodes the independent announcement-index layout")
+    @MainActor
+    func decodesIndependentFallbackLayout() throws {
+        let signals = try ResetSignalMonitor.decodeFallbackSignals(from: independentFallbackFixtureData)
+
+        #expect(signals.count == 1)
+        #expect(signals.first?.id == "2102254445082116335")
+        #expect(signals.first?.timingHint == "weekday:tuesday")
+    }
+
+    @Test("Falls back when the relay marks the feed as test data")
+    @MainActor
+    func detectsTestRelayData() throws {
+        #expect(try ResetSignalMonitor.requiresFallback(fromPrimaryFeed: staleRelayFixtureData, now: Date(timeIntervalSince1970: 1_790_100_000)))
+    }
+
     @Test("First successful poll is a quiet baseline and later items notify once")
     @MainActor
     func deduplicatesAfterBaseline() throws {
@@ -109,6 +148,51 @@ struct ResetSignalMonitorTests {
             {"id":"spoof","external_id":"spoof","author":"someone-else","content":"We will reset Codex limits today.","url":"https://x.com/someone-else/status/spoof","published_at":"2026-09-06T02:39:25"}
           ]
         }
+        """#.utf8)
+    }
+
+    private var scheduledResetFixtureData: Data {
+        Data(#"""
+        {
+          "source": {"user_name": "thsottiaux"},
+          "items": [
+            {"id":"2102254445082116335","external_id":"2102254445082116335","author":"thsottiaux","content":"Ladies and gentlemen... start... your... ENGINES. We are almost Tuesday and I promised a reset for Tuesday. Among some other things. See you soon.","url":"https://x.com/thsottiaux/status/2102254445082116335","published_at":"2026-09-22T04:31:32Z"}
+          ]
+        }
+        """#.utf8)
+    }
+
+    private var fallbackFixtureData: Data {
+        Data(#"""
+        <section>
+          <h2>Related Tibo post</h2>
+          <blockquote><span>Ladies and gentlemen... start... your... ENGINES. We are almost Tuesday and I promised a reset for Tuesday. Among some other things. See you soon.</span></blockquote>
+          <time dateTime="2026-09-22T04:31:32.000Z">22 Sep</time>
+          <a href="https://x.com/thsottiaux/status/2102254445082116335">View post</a>
+        </section>
+        """#.utf8)
+    }
+
+    private var staleRelayFixtureData: Data {
+        Data(#"""
+        {
+          "source": {"user_name": "thsottiaux"},
+          "items": [
+            {"id":"old","author":"thsottiaux","content":"Codex is faster today.","url":"https://x.com/thsottiaux/status/old","published_at":"2026-09-06T21:51:18Z","read_origin":"test"}
+          ]
+        }
+        """#.utf8)
+    }
+
+    private var independentFallbackFixtureData: Data {
+        Data(#"""
+        <aside>
+          <div class="announcement-post">
+            <p class="announcement-author">Tibo @thsottiaux · <time data-time datetime="2026-09-22T04:31:32+00:00">2026-09-22T04:31:32+00:00</time></p>
+            <blockquote>Ladies and gentlemen... start... your... ENGINES. We are almost Tuesday and I promised a reset for Tuesday. Among some other things. See you soon.</blockquote>
+            <a href="https://x.com/thsottiaux/status/2102254445082116335">View announcement</a>
+          </div>
+        </aside>
         """#.utf8)
     }
 

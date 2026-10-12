@@ -1,5 +1,13 @@
 # Claude Web Connector
 
+## Claude Code OAuth (experimental, opt-in)
+
+In Settings, select **Automatic** or **Claude Code · OAuth** and press **Connect Claude Code** only if you accept this experimental source. Review the macOS permission prompt before allowing `/usr/bin/security` to read the Claude Code Keychain entry. Pulse caches only the extracted access token in memory and requests `api.anthropic.com/api/oauth/usage` on its Claude refresh loop and explicit refreshes; the general provider loop can also request data. Claude Code alone renews the login. On denial, Pulse stops background Keychain attempts until Connect is pressed again. On an unchanged token after HTTP 401, open Claude Code and refresh Pulse. HTTP 429 pauses requests for the server's `Retry-After` interval, at least one minute. This is not an Anthropic-approved public quota API; do not assume third-party credential use is approved or that desktop-only live data is guaranteed.
+
+Automatic mode can use Pulse Connector or the local Claude desktop app percentage history when OAuth is unavailable. The local file has no model windows or reset times; old local samples are rejected. A passed reset removes an old percentage from current views.
+
+## Pulse Connector
+
 ## What it does
 
 Pulse Connector reads the same quota aggregates shown on the signed-in Claude Usage page and sends only percentages, reset timestamps, model-window names, capture time, and a sanitized plan label to Codex Pulse.

@@ -70,6 +70,7 @@ final class SettingsStore: ObservableObject {
     @Published var showEstimatedCost: Bool { didSet { set(showEstimatedCost, Keys.showEstimatedCost) } }
     @Published var showUnavailableProviders: Bool { didSet { set(showUnavailableProviders, Keys.showUnavailableProviders) } }
     @Published var claudeUsageSource: ClaudeUsageSource { didSet { set(claudeUsageSource.rawValue, Keys.claudeUsageSource) } }
+    @Published var claudeOAuthConsent: Bool { didSet { set(claudeOAuthConsent, Keys.claudeOAuthConsent) } }
     @Published var claudeBrowserCookieImportAllowed: Bool {
         didSet { set(claudeBrowserCookieImportAllowed, Keys.claudeBrowserCookieImportAllowed) }
     }
@@ -103,6 +104,7 @@ final class SettingsStore: ObservableObject {
         static let showEstimatedCost = "cost.visible"
         static let showUnavailableProviders = "providers.showUnavailable"
         static let claudeUsageSource = "providers.claude.source"
+        static let claudeOAuthConsent = "providers.claude.oauthConsent"
         static let claudeBrowserCookieImportAllowed = "providers.claude.browserCookieImportAllowed"
     }
 
@@ -136,6 +138,7 @@ final class SettingsStore: ObservableObject {
         showUnavailableProviders = defaults.object(forKey: Keys.showUnavailableProviders) as? Bool ?? false
         claudeUsageSource = defaults.string(forKey: Keys.claudeUsageSource)
             .flatMap(ClaudeUsageSource.init(rawValue:)) ?? .off
+        claudeOAuthConsent = defaults.bool(forKey: Keys.claudeOAuthConsent)
         claudeBrowserCookieImportAllowed = defaults.object(forKey: Keys.claudeBrowserCookieImportAllowed) as? Bool ?? false
     }
 

@@ -168,6 +168,7 @@ struct CodexBarBridgeProvider: Sendable {
         case .web: "Claude Web via local bridge"
         case .oauth: "Claude OAuth via local bridge"
         case .automatic: rawSource.map { "Claude \($0) via local bridge" } ?? "Claude via local bridge"
+        case .legacyOAuth: "Claude OAuth via local bridge"
         case .off: ""
         }
 

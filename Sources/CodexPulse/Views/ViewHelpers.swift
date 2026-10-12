@@ -11,6 +11,40 @@ func providerMessage(_ snapshot: ProviderSnapshot, language: AppLanguage) -> Str
        message == ExecutableLocator.missingCodexMessage(language: .english) {
         return ExecutableLocator.missingCodexMessage(language: language)
     }
+    return snapshot.provider == .claude ? claudeErrorText(message, language: language) : message
+}
+
+func claudeErrorText(_ message: String, language: AppLanguage) -> String {
+    if message.contains("Keychain") {
+        return tr(language,
+            "Доступ к связке ключей не получен. Нажмите «Подключить Claude Code» для новой попытки.",
+            "Keychain access was not granted. Press Connect Claude Code to try again.")
+    }
+    if message.contains("not renewed") {
+        return tr(language,
+            "Claude Code не обновил вход. Откройте Claude Code и нажмите «Обновить».",
+            "Claude Code has not renewed its login. Open Claude Code, then press Refresh.")
+    }
+    if message.contains("rate limit") {
+        return tr(language,
+            "Anthropic ограничил частоту запросов. Pulse повторит попытку после паузы.",
+            "Anthropic rate limited requests. Pulse will retry after the pause.")
+    }
+    if message.contains("Connect Claude Code") {
+        return tr(language,
+            "Нажмите «Подключить Claude Code» в настройках для доступа к лимитам.",
+            "Press Connect Claude Code in Settings to access quotas.")
+    }
+    if message.contains("quota reset") || message.contains("No current Claude quota") {
+        return tr(language,
+            "Ожидаем новое измерение лимита Claude после сброса.",
+            "Waiting for a new Claude quota measurement after reset.")
+    }
+    if message.contains("quota request failed") || message.contains("unreadable quota") {
+        return tr(language,
+            "Не удалось получить лимиты Claude. Проверьте подключение и обновите данные.",
+            "Could not read Claude quotas. Check the connection and refresh.")
+    }
     return message
 }
 
@@ -183,6 +217,13 @@ func claudeQuotaMeters(
     }
 }
 
+func claudeSourceStatusText(_ snapshot: ProviderSnapshot, language: AppLanguage, now: Date = .now) -> String {
+    guard snapshot.provider == .claude, snapshot.state == .connected else { return snapshot.source }
+    guard now.timeIntervalSince(snapshot.updatedAt) > 5 * 60 else { return snapshot.source }
+    let time = localizedDate(snapshot.updatedAt, language: language, dateStyle: .none, timeStyle: .short)
+    return tr(language, "Обновлено \(time) · \(snapshot.source)", "Updated \(time) · \(snapshot.source)")
+}
+
 func claudeMeterResetText(_ meter: QuotaMeterItem, language: AppLanguage) -> String {
     guard meter.window.resetsAt != nil else {
         return tr(
@@ -245,10 +286,11 @@ struct ClaudeQuotaMeterView: View {
 func claudeUsageSourceTitle(_ source: ClaudeUsageSource, language: AppLanguage) -> String {
     switch source {
     case .off: tr(language, "Отключено", "Off")
-    case .browserExtension: tr(language, "Pulse Connector (рекомендуется)", "Pulse Connector (recommended)")
+    case .browserExtension: "Pulse Connector"
     case .web: tr(language, "CodexBar · Chrome (legacy)", "CodexBar · Chrome (legacy)")
-    case .oauth: "OAuth"
-    case .automatic: tr(language, "Автоматически", "Automatic")
+    case .oauth: tr(language, "Claude Code · OAuth", "Claude Code · OAuth")
+    case .automatic: tr(language, "Автоматически (рекомендуется)", "Automatic (recommended)")
+    case .legacyOAuth: tr(language, "CodexBar · OAuth (legacy)", "CodexBar · OAuth (legacy)")
     }
 }
 

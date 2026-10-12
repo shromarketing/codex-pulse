@@ -294,10 +294,26 @@ struct ResetSignalCard: View {
             return tr(settings.language, "Срок: до конца дня. Точный час и часовой пояс в посте не указаны.", "Timing: by end of day. The post does not state an exact time zone or hour.")
         case "next hour": value = tr(settings.language, "в течение часа", "within the next hour")
         case "today": value = tr(settings.language, "сегодня", "today")
+        case let hint? where hint.hasPrefix("weekday:"):
+            let weekday = String(hint.dropFirst("weekday:".count))
+            let localized = localizedWeekday(weekday)
+            return tr(
+                settings.language,
+                "Ориентир: \(localized). Точный час и часовой пояс в посте не указаны.",
+                "Timing: \(localized). The post does not state an exact time zone or hour."
+            )
         case let hint?: value = hint
         case nil: value = tr(settings.language, "время в источнике не указано", "the source states no time")
         }
         return tr(settings.language, "Ориентир: \(value)", "Timing: \(value)")
+    }
+
+    private func localizedWeekday(_ weekday: String) -> String {
+        let russian: [String: String] = [
+            "monday": "понедельник", "tuesday": "вторник", "wednesday": "среда",
+            "thursday": "четверг", "friday": "пятница", "saturday": "суббота", "sunday": "воскресенье"
+        ]
+        return settings.language == .russian ? (russian[weekday] ?? weekday) : weekday.capitalized
     }
 
     private func russianSummary(for signal: ResetSignal) -> String {
@@ -316,8 +332,8 @@ struct ResetSignalCard: View {
     private var sourceNote: String {
         tr(
             settings.language,
-            "Codex: публичная лента Tibo — ранний сигнал. Claude: официальный Statuspage, но показываются только явные сообщения о reset/usage/limit. Любой анонс сверяйте с квотой своего аккаунта.",
-            "Codex: Tibo's public feed is an early signal. Claude: the official Statuspage, filtered to explicit reset/usage/limit messages. Verify any announcement against your account quota."
+            "Codex: публичная лента Tibo — ранний сигнал. При устаревшем relay Pulse использует публичные индексы только для поиска ссылки на оригинальный пост Tibo. Claude: официальный Statuspage, но показываются только явные сообщения о reset/usage/limit. Любой анонс сверяйте с квотой своего аккаунта.",
+            "Codex: Tibo's public feed is an early signal. If the relay is stale, Pulse uses public indexes only to find Tibo's original post. Claude: the official Statuspage, filtered to explicit reset/usage/limit messages. Verify any announcement against your account quota."
         )
     }
 
